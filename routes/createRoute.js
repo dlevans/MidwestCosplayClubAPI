@@ -78,7 +78,8 @@ router.post("/", (req, res) => {
 
                     const insertQuery = `
                         INSERT INTO [dbo].[Users] (firstname, lastname, birthdate, username, hashedpassword, image) 
-                        VALUES (@firstname, @lastname, @birthdate, @username, @hashedpassword, @image)`;
+                        VALUES (@firstname, @lastname, @birthdate, @username, @hashedpassword, @image);
+                        SELECT SCOPE_IDENTITY() AS userId;`;
 
                     request.input("firstname", sql.NVarChar, firstname);
                     request.input("lastname", sql.NVarChar, lastname);
@@ -87,11 +88,14 @@ router.post("/", (req, res) => {
                     request.input("image", sql.NVarChar, imageUrl);
 
                     request.query(insertQuery)
-                        .then(() => res.json("User added!"))
-                        .catch(err => {
-                            console.error("Error inserting user:", err.message || err);
-                            res.status(500).json({ message: "Error inserting user into the database", error: err });
-                        });
+                    .then(result => {
+                        const userId = result.recordset[0].userId; // Get the inserted user ID
+                        res.json({ message: "User added!", userId: userId }); // Return userId in response
+                    })
+                    .catch(err => {
+                        console.error("Error inserting user:", err.message || err);
+                        res.status(500).json({ message: "Error inserting user into the database", error: err });
+                    });
                 });
             })
             .catch(err => {

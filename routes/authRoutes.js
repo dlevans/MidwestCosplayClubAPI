@@ -4,8 +4,8 @@ const jwt = require("jsonwebtoken");
 const { sql, poolPromise } = require("../db");
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET;
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN;
+const JWT_SECRET = "snYUAu:<-NyX2>W=w`p[j~9r!(7JzaD5";
+const JWT_EXPIRES_IN = "24h";
 
 router.post("/", async (req, res) => {
   console.log("post /login");
@@ -19,11 +19,11 @@ router.post("/", async (req, res) => {
     const pool = await poolPromise;
     const result = await pool.request()
       .input("username", sql.NVarChar, username)
-      .query("SELECT * FROM [dbo].[Users] WHERE [username] = @username");
+      .query("SELECT * FROM [dbo].[Users] WHERE [username] = @username");      
 
     if (result.recordset.length === 0) return res.status(404).json({ message: "User not found" });
 
-    const user = result.recordset[0];
+    const user = result.recordset[0];   
     const isMatch = await bcrypt.compare(password, user.hashedpassword);
     if (!isMatch) return res.status(400).json({ message: "Invalid password!" });
 

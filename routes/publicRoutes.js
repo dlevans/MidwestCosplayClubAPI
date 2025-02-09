@@ -15,7 +15,8 @@ router.get("/:username", (req, res) =>
 
         const username = req.params.username;
 
-        sql.query`SELECT firstname, lastname, username, about, twitter, bluesky, instagram, facebook, discord, snapchat, tiktok, threads, reddit, twitch, youtube, vimeo, patreon, kofi, venmo, paypal, gofundme, extralife, calendar FROM [dbo].[Users] WHERE [username] = ${username}`
+        sql.query`SELECT firstname, lastname, username, about, email, phonenumber, image, twitter, bluesky, instagram, facebook, discord, 
+        snapchat, tiktok, threads, reddit, twitch, youtube, vimeo, patreon, kofi, venmo, paypal, gofundme, extralife, calendar, complete, inprogress, cosplaygroup FROM [dbo].[Users] WHERE [username] = ${username}`
             .then(result => 
                 {
                     if (result.recordset.length === 0) 

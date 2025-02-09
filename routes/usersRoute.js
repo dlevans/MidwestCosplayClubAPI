@@ -55,6 +55,7 @@ router.post("/upload", upload.single("image"), (req, res) => {
     res.status(200).json({ message: "Image uploaded successfully", imageUrl });
 });
 
+
 /*
  *   Get all users
  */
@@ -70,6 +71,7 @@ router.get("/", async (req, res) => {
 });
 
 
+
 /*
  *   Get a single user by ID
  */
@@ -79,7 +81,7 @@ router.get("/:ID", (req, res) => {
 
     sql.query`SELECT firstname, lastname, birthdate, phonenumber, username, email, about, 
     image, other, calendar, twitter, bluesky, instagram, facebook, discord, snapchat, tiktok, 
-    threads, reddit, twitch, youtube, vimeo, patreon, kofi, venmo, paypal, gofundme, extralife, complete, inprogress FROM [dbo].[Users] WHERE [ID] = ${userID}`
+    threads, reddit, twitch, youtube, vimeo, patreon, kofi, venmo, paypal, gofundme, extralife, complete, inprogress, cosplaygroup FROM [dbo].[Users] WHERE [ID] = ${userID}`
         .then(result => {
             if (result.recordset.length === 0) {
                 return res.status(404).json({ message: "User not found" });
@@ -92,25 +94,31 @@ router.get("/:ID", (req, res) => {
         });
 });
 
-/*
- *   Update a user (with image support)
- */
-router.put("/:ID", upload.single("image"), (req, res) => {
-    console.log("PUT /users/:ID");
-    const userID = req.params.ID;
 
-    if (req.user.id !== parseInt(userID)) {
+
+/*
+ *   Update a user
+ */
+router.put("/:ID", upload.single("image"), async (req, res) => {
+    console.log("PUT /users/:ID");
+    const userID = parseInt(req.params.ID);
+
+    if (req.user.id !== userID) {
         return res.status(403).json({ message: "You can only update your own profile" });
     }
 
-    let image = req.body.image || null;
+    let image = req.body.image || "";
     if (req.file) {
         image = `${req.protocol}://${req.get("host")}/uploads/${req.body.username}/${req.file.filename}`;
     }
 
-    bcrypt.hash(req.body.password, 10, (err, hashedPassword) => {
-        if (err) {
-            return res.status(500).json({ message: "Error hashing password" });
+    try {
+        const pool = await poolPromise;
+        let hashedPassword = "";
+
+        // Check if a new password was provided
+        if (req.body.password) {
+            hashedPassword = await bcrypt.hash(req.body.password, 10);
         }
 
         const query = `
@@ -144,53 +152,57 @@ router.put("/:ID", upload.single("image"), (req, res) => {
                 [extralife] = @extralife,
                 [complete] = @complete,
                 [inprogress] = @inprogress,
-                [hashedpassword] = @hashedpassword,
+                [cosplaygroup] = @cosplaygroup,
                 [image] = @image
+                ${hashedPassword ? ", [hashedpassword] = @hashedpassword" : ""}
             WHERE [ID] = @userID`;
 
-        poolPromise.then(pool => {
-            new sql.Request()
-                .input("firstname", sql.VarChar, req.body.firstname || "")
-                .input("lastname", sql.VarChar, req.body.lastname || "")
-                .input("email", sql.VarChar, req.body.email || "")
-                .input("birthdate", sql.Date, req.body.birthdate || "")
-                .input("phonenumber", sql.VarChar, req.body.phonenumber || "")
-                .input("about", sql.VarChar, req.body.about || "")
-                .input("other", sql.VarChar, req.body.other || "")
-                .input("calendar", sql.VarChar, req.body.calendar || "")
-                .input("twitter", sql.VarChar, req.body.twitter || "")
-                .input("bluesky", sql.VarChar, req.body.bluesky || "")
-                .input("instagram", sql.VarChar, req.body.instagram || "")
-                .input("facebook", sql.VarChar, req.body.facebook || "")
-                .input("discord", sql.VarChar, req.body.discord || "")
-                .input("snapchat", sql.VarChar, req.body.snapchat || "")
-                .input("tiktok", sql.VarChar, req.body.tiktok || "")
-                .input("threads", sql.VarChar, req.body.threads || "")
-                .input("reddit", sql.VarChar, req.body.reddit || "")
-                .input("twitch", sql.VarChar, req.body.twitch || "")
-                .input("youtube", sql.VarChar, req.body.youtube || "")
-                .input("vimeo", sql.VarChar, req.body.vimeo || "")
-                .input("patreon", sql.VarChar, req.body.patreon || "")
-                .input("kofi", sql.VarChar, req.body.kofi || "")
-                .input("venmo", sql.VarChar, req.body.venmo || "")
-                .input("paypal", sql.VarChar, req.body.paypal || "")
-                .input("gofundme", sql.VarChar, req.body.gofundme || "")
-                .input("extralife", sql.VarChar, req.body.extralife || "")
-                .input("complete", sql.VarChar, req.body.complete || "")
-                .input("inprogress", sql.VarChar, req.body.inprogress || "")
-                .input("hashedpassword", sql.VarChar, hashedPassword)
-                .input("image", sql.VarChar, image)
-                .input("userID", sql.Int, userID)
-                .query(query, (err, result) => {
-                    if (err) {
-                        console.log(err);
-                        return res.status(500).json({ message: "Error updating user data" });
-                    }
-                    res.status(200).json({ message: "User updated successfully" });
-                });
-        });
-    });
+        const request = pool.request()
+            .input("firstname", sql.VarChar, req.body.firstname || "")
+            .input("lastname", sql.VarChar, req.body.lastname || "")
+            .input("email", sql.VarChar, req.body.email || "")
+            .input("birthdate", sql.Date, req.body.birthdate || "")
+            .input("phonenumber", sql.VarChar, req.body.phonenumber || "")
+            .input("about", sql.VarChar, req.body.about || "")
+            .input("other", sql.VarChar, req.body.other || "")
+            .input("calendar", sql.VarChar, req.body.calendar || "")
+            .input("twitter", sql.VarChar, req.body.twitter || "")
+            .input("bluesky", sql.VarChar, req.body.bluesky || "")
+            .input("instagram", sql.VarChar, req.body.instagram || "")
+            .input("facebook", sql.VarChar, req.body.facebook || "")
+            .input("discord", sql.VarChar, req.body.discord || "")
+            .input("snapchat", sql.VarChar, req.body.snapchat || "")
+            .input("tiktok", sql.VarChar, req.body.tiktok || "")
+            .input("threads", sql.VarChar, req.body.threads || "")
+            .input("reddit", sql.VarChar, req.body.reddit || "")
+            .input("twitch", sql.VarChar, req.body.twitch || "")
+            .input("youtube", sql.VarChar, req.body.youtube || "")
+            .input("vimeo", sql.VarChar, req.body.vimeo || "")
+            .input("patreon", sql.VarChar, req.body.patreon || "")
+            .input("kofi", sql.VarChar, req.body.kofi || "")
+            .input("venmo", sql.VarChar, req.body.venmo || "")
+            .input("paypal", sql.VarChar, req.body.paypal || "")
+            .input("gofundme", sql.VarChar, req.body.gofundme || "")
+            .input("extralife", sql.VarChar, req.body.extralife || "")
+            .input("complete", sql.VarChar, req.body.complete || "")
+            .input("inprogress", sql.VarChar, req.body.inprogress || "")
+            .input("cosplaygroup", sql.VarChar, req.body.cosplaygroup || "")
+            .input("image", sql.VarChar, image)
+            .input("userID", sql.Int, userID);
+
+        if (hashedPassword) {
+            request.input("hashedpassword", sql.VarChar, hashedPassword);
+        }
+
+        await request.query(query);
+        res.status(200).json({ message: "User updated successfully" });
+
+    } catch (err) {
+        console.error("Database update error:", err);
+        res.status(500).json({ message: "Error updating user data", error: err });
+    }
 });
+
 
 /*
  *   Delete a user

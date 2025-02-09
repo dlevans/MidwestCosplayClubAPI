@@ -9,6 +9,7 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 const authRoutes = require("./routes/authRoutes");
 const usersRoute = require("./routes/usersRoute");
 const createRoute = require("./routes/createRoute");
+const searchRoute = require("./routes/searchRoutes");
 
 //Public routes
 const publicRoutes = require("./routes/publicRoutes");
@@ -23,6 +24,7 @@ app.use(express.json());
 // Use routes
 app.use("/login", authRoutes);
 app.use("/users", usersRoute);
+app.use("/search", searchRoute);
 app.use("/createnew", createRoute);
 
 
