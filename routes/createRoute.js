@@ -2,22 +2,21 @@ const express = require("express");
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
-const { sql } = require("../db");
 const bcrypt = require("bcryptjs");
+const pool = require("../db"); // Import MySQL2 connection pool
 
 const router = express.Router();
 
 // Set up multer storage with dynamic directory creation
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        const username = req.body.username; // Get username from request body
+        const username = req.body.username;
         if (!username) {
             return cb(new Error("Username is required for file upload"), null);
         }
 
         const uploadFolder = path.join(__dirname, "../uploads", username);
 
-        // Ensure the directory exists
         fs.mkdir(uploadFolder, { recursive: true }, (err) => {
             if (err) {
                 return cb(err, null);
@@ -26,85 +25,62 @@ const storage = multer.diskStorage({
         });
     },
     filename: (req, file, cb) => {
-        // Use timestamp to avoid name conflicts
         const filename = Date.now() + path.extname(file.originalname);
         cb(null, filename);
     }
 });
 
-// Initialize multer with storage settings
 const upload = multer({ storage: storage }).single("image");
 
+router.post("/", async (req, res) => {
+    try {
+        upload(req, res, async (err) => {
+            if (err) {
+                console.error("Error uploading file: ", err);
+                return res.status(500).json({ message: "Error uploading file", error: err });
+            }
 
-/*
- *   Create a new user
- */
-router.post("/", (req, res) => {
-    upload(req, res, (err) => {
-        if (err) {
-            console.error("Error uploading file: ", err);
-            return res.status(500).json({ message: "Error uploading file", error: err });
-        }
+            const { firstname, lastname, birthdate, username, password } = req.body;
 
-        const { firstname, lastname, birthdate, username, password } = req.body;
+            const passwordRegex = /^(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+            if (!passwordRegex.test(password)) {
+                return res.status(400).json({
+                    message: "Password must be at least 8 characters long, contain at least one number, and one special character."
+                });
+            }
 
-        // Password validation regex
-        const passwordRegex = /^(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-        
-        if (!passwordRegex.test(password)) {
-            return res.status(400).json({ 
-                message: "Password must be at least 8 characters long, contain at least one number, and one special character." 
-            });
-        }
+            const usernameRegex = /^[A-Za-z0-9]+$/;
 
-        const checkQuery = "SELECT count(*) AS count FROM [dbo].[Users] WHERE username = @username";
-        const request = new sql.Request();
-        request.input("username", sql.NVarChar, username);
+            if (!usernameRegex.test(username)) {
+                return res.status(400).json({
+                    message: "Username must only contain letters and numbers, without spaces or special characters."
+                });
+            }
 
-        request.query(checkQuery)
-            .then(result => {
-                if (result.recordset[0].count > 0) {
+            try {
+                const [existingUser] = await pool.query("SELECT COUNT(*) AS count FROM Users WHERE username = ?", [username]);
+                if (existingUser[0].count > 0) {
                     return res.status(409).json({ message: "Username already exists!!" });
                 }
 
-                // Proceed with hashing and inserting the user
-                bcrypt.hash(password, 10, (err, hashedpassword) => {
-                    if (err) {
-                        console.error("Error hashing password: ", err);
-                        return res.status(500).json({ message: "Error hashing password", error: err });
-                    }
+                const hashedpassword = await bcrypt.hash(password, 10);
+                const imageUrl = req.file ? `${req.protocol}://${req.get("host")}/uploads/${username}/${req.file.filename}` : null;
 
-                    const imageUrl = req.file ? `${req.protocol}://${req.get("host")}/uploads/${username}/${req.file.filename}` : null;
+                const [result] = await pool.query(
+                    "INSERT INTO Users (firstname, lastname, birthdate, username, hashedpassword, image) VALUES (?, ?, ?, ?, ?, ?)",
+                    [firstname, lastname, birthdate , username, hashedpassword, imageUrl]
+                );
 
-                    const insertQuery = `
-                        INSERT INTO [dbo].[Users] (firstname, lastname, birthdate, username, hashedpassword, image) 
-                        VALUES (@firstname, @lastname, @birthdate, @username, @hashedpassword, @image);
-                        SELECT SCOPE_IDENTITY() AS userId;`;
-
-                    request.input("firstname", sql.NVarChar, firstname);
-                    request.input("lastname", sql.NVarChar, lastname);
-                    request.input("birthdate", sql.Date, birthdate);
-                    request.input("hashedpassword", sql.NVarChar, hashedpassword);
-                    request.input("image", sql.NVarChar, imageUrl);
-
-                    request.query(insertQuery)
-                    .then(result => {
-                        const userId = result.recordset[0].userId; // Get the inserted user ID
-                        res.json({ message: "User added!", userId: userId }); // Return userId in response
-                    })
-                    .catch(err => {
-                        console.error("Error inserting user:", err.message || err);
-                        res.status(500).json({ message: "Error inserting user into the database", error: err });
-                    });
-                });
-            })
-            .catch(err => {
-                console.error("Error checking username:", err.message || err);
-                res.status(500).json({ message: "Error checking username", error: err });
-            });
-    });
+                res.json({ message: "User added!", userId: result.insertId });
+            } catch (error) {
+                console.error("Database error:", error);
+                res.status(500).json({ message: "Error inserting user into the database", error });
+            }
+        });
+    } catch (error) {
+        console.error("Error processing request:", error);
+        res.status(500).json({ message: "Error processing request", error });
+    }
 });
-
-
 
 module.exports = router;

@@ -1,21 +1,16 @@
-const sql = require("mssql");
+const mysql = require('mysql2');
 
-const config = {
-  //user: process.env.user,
-  //password: process.env.password,
-  //server: process.env.server,
-  //database: process.env.database,
-  options: { encrypt: true, trustServerCertificate: false },
-};
+const pool = mysql.createPool({
+  host: process.env.host,
+  user: process.env.user,
+  password: process.env.password,
+  database: process.env.database,
+  waitForConnections: true,
+  connectionLimit: 50, // Adjust based on your needs
+  queueLimit: 0
+});
 
-const poolPromise = sql.connect(config)
-  .then(pool => {
-    console.log("Connected to Azure SQL Database!");
-    return pool;
-  })
-  .catch(err => {
-    console.error("Database connection failed:", err);
-    process.exit(1);
-  });
+// Use promise-based API for async/await
+const db = pool.promise();
 
-module.exports = { sql, poolPromise };
+module.exports = db;

@@ -1,7 +1,7 @@
 const express = require("express");
 const multer = require("multer");
 const path = require("path");
-const { sql, poolPromise } = require("../db");
+const db = require("../db"); // Import MySQL connection
 const fs = require("fs");
 const bcrypt = require("bcryptjs");
 const authenticateJWT = require("../authMiddleware");
@@ -23,10 +23,7 @@ const storage = multer.diskStorage({
         }
 
         const userFolder = path.join(__dirname, `../uploads/${username}`);
-
-        // Ensure the user's uploads folder exists
         fs.mkdirSync(userFolder, { recursive: true });
-
         cb(null, userFolder);
     },
     filename: (req, file, cb) => {
@@ -35,69 +32,58 @@ const storage = multer.diskStorage({
     },
 });
 
-// Initialize multer
 const upload = multer({ storage: storage });
 
 /*
- *   Upload an image for a user
- */
-router.post("/upload", upload.single("image"), (req, res) => {
-    if (!req.file) {
-        return res.status(400).json({ message: "No file uploaded" });
-    }
-
-    const username = req.body.username;
-    if (!username) {
-        return res.status(400).json({ message: "Username is required" });
-    }
-
-    const imageUrl = `${req.protocol}://${req.get("host")}/uploads/${username}/${req.file.filename}`;
-    res.status(200).json({ message: "Image uploaded successfully", imageUrl });
-});
-
-
-/*
- *   Get all users
+ * Get all users
  */
 router.get("/", async (req, res) => {
-    console.log("GET /users");
+    console.log("GET all /users");
+
+    const { limit = 10, page = 1 } = req.query;  // Default limit is 10, default page is 1
+    const offset = (page - 1) * limit;
+
     try {
-        const pool = await poolPromise;
-        const result = await pool.query("SELECT ID, firstname, lastname, email, birthdate, phonenumber, username, about, image FROM [dbo].[Users]");
-        res.status(200).json(result.recordset);
+        const [results] = await db.query(
+            "SELECT ID, firstname, lastname, imawhat, email, birthdate, phonenumber, username, about, image FROM Users ORDER BY username ASC LIMIT ? OFFSET ? ",
+            [parseInt(limit), parseInt(offset)]
+        );
+
+        const [[{ total }]] = await db.query("SELECT COUNT(*) as total FROM Users");
+
+        res.status(200).json({ users: results, total });
     } catch (err) {
+        console.error("Error fetching users:", err);
         res.status(500).json({ message: "Error fetching users", error: err });
     }
 });
 
-
-
 /*
- *   Get a single user by ID
+ * Get a single user by ID
  */
-router.get("/:ID", (req, res) => {
+router.get("/:ID", async (req, res) => {
     console.log("GET /users/:ID");
     const userID = req.params.ID;
 
-    sql.query`SELECT firstname, lastname, birthdate, phonenumber, username, email, about, 
-    image, other, calendar, twitter, bluesky, instagram, facebook, discord, snapchat, tiktok, 
-    threads, reddit, twitch, youtube, vimeo, patreon, kofi, venmo, paypal, gofundme, extralife, complete, inprogress, cosplaygroup FROM [dbo].[Users] WHERE [ID] = ${userID}`
-        .then(result => {
-            if (result.recordset.length === 0) {
-                return res.status(404).json({ message: "User not found" });
-            }
-            res.status(200).json(result.recordset[0]);
-        })
-        .catch(err => {
-            console.error("Error fetching user:", err);
-            res.status(500).json({ message: "Error fetching user data", error: err });
-        });
+    try {
+        const [results] = await db.query(
+            "SELECT firstname, lastname, imawhat, birthdate, phonenumber, username, email, about, image, other, calendar, twitter, bluesky, instagram, facebook, discord, snapchat, tiktok, threads, reddit, twitch, youtube, vimeo, patreon, kofi, venmo, cashapp, paypal, gofundme, extralife, etsy, complete, inprogress, cosplaygroup FROM Users WHERE ID = ?",
+            [userID]
+        );
+
+        if (results.length === 0) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        res.status(200).json(results[0]);
+    } catch (err) {
+        console.error("Error fetching user:", err);
+        res.status(500).json({ message: "Error fetching user data", error: err });
+    }
 });
 
-
-
 /*
- *   Update a user
+ * Update a user
  */
 router.put("/:ID", upload.single("image"), async (req, res) => {
     console.log("PUT /users/:ID");
@@ -113,119 +99,72 @@ router.put("/:ID", upload.single("image"), async (req, res) => {
     }
 
     try {
-        const pool = await poolPromise;
-        let hashedPassword = "";
-
-        // Check if a new password was provided
+        let hashedPassword = null;
         if (req.body.password) {
             hashedPassword = await bcrypt.hash(req.body.password, 10);
         }
 
-        const query = `
-            UPDATE [dbo].[Users]
-            SET
-                [firstname] = @firstname,
-                [lastname] = @lastname,
-                [email] = @email,
-                [birthdate] = @birthdate,
-                [phonenumber] = @phonenumber,
-                [about] = @about,
-                [other] = @other,
-                [calendar] = @calendar,
-                [twitter] = @twitter,
-                [bluesky] = @bluesky,
-                [instagram] = @instagram,
-                [facebook] = @facebook,
-                [discord] = @discord,
-                [snapchat] = @snapchat,
-                [tiktok] = @tiktok,
-                [threads] = @threads,
-                [reddit] = @reddit,
-                [twitch] = @twitch,
-                [youtube] = @youtube,
-                [vimeo] = @vimeo,
-                [patreon] = @patreon,
-                [kofi] = @kofi,
-                [venmo] = @venmo,
-                [paypal] = @paypal,
-                [gofundme] = @gofundme,
-                [extralife] = @extralife,
-                [complete] = @complete,
-                [inprogress] = @inprogress,
-                [cosplaygroup] = @cosplaygroup,
-                [image] = @image
-                ${hashedPassword ? ", [hashedpassword] = @hashedpassword" : ""}
-            WHERE [ID] = @userID`;
-
-        const request = pool.request()
-            .input("firstname", sql.VarChar, req.body.firstname || "")
-            .input("lastname", sql.VarChar, req.body.lastname || "")
-            .input("email", sql.VarChar, req.body.email || "")
-            .input("birthdate", sql.Date, req.body.birthdate || "")
-            .input("phonenumber", sql.VarChar, req.body.phonenumber || "")
-            .input("about", sql.VarChar, req.body.about || "")
-            .input("other", sql.VarChar, req.body.other || "")
-            .input("calendar", sql.VarChar, req.body.calendar || "")
-            .input("twitter", sql.VarChar, req.body.twitter || "")
-            .input("bluesky", sql.VarChar, req.body.bluesky || "")
-            .input("instagram", sql.VarChar, req.body.instagram || "")
-            .input("facebook", sql.VarChar, req.body.facebook || "")
-            .input("discord", sql.VarChar, req.body.discord || "")
-            .input("snapchat", sql.VarChar, req.body.snapchat || "")
-            .input("tiktok", sql.VarChar, req.body.tiktok || "")
-            .input("threads", sql.VarChar, req.body.threads || "")
-            .input("reddit", sql.VarChar, req.body.reddit || "")
-            .input("twitch", sql.VarChar, req.body.twitch || "")
-            .input("youtube", sql.VarChar, req.body.youtube || "")
-            .input("vimeo", sql.VarChar, req.body.vimeo || "")
-            .input("patreon", sql.VarChar, req.body.patreon || "")
-            .input("kofi", sql.VarChar, req.body.kofi || "")
-            .input("venmo", sql.VarChar, req.body.venmo || "")
-            .input("paypal", sql.VarChar, req.body.paypal || "")
-            .input("gofundme", sql.VarChar, req.body.gofundme || "")
-            .input("extralife", sql.VarChar, req.body.extralife || "")
-            .input("complete", sql.VarChar, req.body.complete || "")
-            .input("inprogress", sql.VarChar, req.body.inprogress || "")
-            .input("cosplaygroup", sql.VarChar, req.body.cosplaygroup || "")
-            .input("image", sql.VarChar, image)
-            .input("userID", sql.Int, userID);
+        const updateFields = {
+            firstname: req.body.firstname || "",
+            lastname: req.body.lastname || "",
+            email: req.body.email || "",
+            birthdate: req.body.birthdate || "",
+            phonenumber: req.body.phonenumber || "",
+            about: req.body.about || "",
+            other: req.body.other || "",
+            calendar: req.body.calendar || "",
+            twitter: req.body.twitter || "",
+            bluesky: req.body.bluesky || "",
+            instagram: req.body.instagram || "",
+            facebook: req.body.facebook || "",
+            discord: req.body.discord || "",
+            snapchat: req.body.snapchat || "",
+            tiktok: req.body.tiktok || "",
+            threads: req.body.threads || "",
+            reddit: req.body.reddit || "",
+            twitch: req.body.twitch || "",
+            youtube: req.body.youtube || "",
+            vimeo: req.body.vimeo || "",
+            patreon: req.body.patreon || "",
+            kofi: req.body.kofi || "",
+            venmo: req.body.venmo || "",
+            cashapp: req.body.cashapp || "",
+            paypal: req.body.paypal || "",
+            gofundme: req.body.gofundme || "",
+            extralife: req.body.extralife || "",
+            etsy: req.body.etsy || "",
+            complete: req.body.complete || "",
+            inprogress: req.body.inprogress || "",
+            cosplaygroup: req.body.cosplaygroup || "",
+            imawhat:req.body.imawhat || "",
+            image: image || "",
+        };
 
         if (hashedPassword) {
-            request.input("hashedpassword", sql.VarChar, hashedPassword);
+            updateFields.hashedpassword = hashedPassword;
         }
 
-        await request.query(query);
-        res.status(200).json({ message: "User updated successfully" });
+        const fields = Object.keys(updateFields).map((key) => `${key} = ?`).join(", ");
+        const values = Object.values(updateFields);
+        values.push(userID);
 
+        const query = `UPDATE Users SET ${fields} WHERE ID = ?`;
+
+        await db.query(query, values);
+
+        res.status(200).json({ message: "User updated successfully" });
     } catch (err) {
-        console.error("Database update error:", err);
+        console.error("Error:", err);
         res.status(500).json({ message: "Error updating user data", error: err });
     }
 });
 
-
 /*
- *   Delete a user
+ * Delete a user
  */
-router.delete("/:ID", (req, res) => {
+router.delete("/:ID", async (req, res) => {
     console.log("DELETE /users/:ID");
-    const userId = req.params.ID;
 
-    if (req.user.id !== parseInt(userId)) {
-        return res.status(403).json({ message: "You can only delete your own account!" });
-    }
-
-    sql.query`DELETE FROM [dbo].[Users] WHERE [ID] = ${userId}`
-        .then(result => {
-            if (result.rowsAffected[0] === 0) {
-                return res.status(404).json({ message: "User not found" });
-            }
-            return res.status(200).json({ message: "User account deleted successfully" });
-        })
-        .catch(err => {
-            console.error("Error deleting user:", err);
-            return res.status(500).json({ message: "Error deleting user", error: err });
-        });
 });
 
 module.exports = router;
