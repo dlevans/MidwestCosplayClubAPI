@@ -33,6 +33,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage }).single("image");
 
 router.post("/", async (req, res) => {
+    console.log("POST /create");
     try {
         upload(req, res, async (err) => {
             if (err) {
@@ -64,7 +65,7 @@ router.post("/", async (req, res) => {
                 }
 
                 const hashedpassword = await bcrypt.hash(password, 10);
-                const imageUrl = req.file ? `${req.protocol}://${req.get("host")}/uploads/${username}/${req.file.filename}` : null;
+                const imageUrl = req.file ? `https://${req.get("host")}/uploads/${username}/${req.file.filename}` : null;
 
                 const result = await pool.query(
                     "INSERT INTO users (firstname, lastname, birthdate, username, hashedpassword, image) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
