@@ -58,7 +58,7 @@ router.post("/", async (req, res) => {
             }
 
             try {
-                const [existingUser] = await pool.query("SELECT COUNT(*) AS count FROM Users WHERE username = ?", [username]);
+                const [existingUser] = await pool.query("SELECT COUNT(*) AS count FROM Users WHERE username = $1", [username]);
                 if (existingUser[0].count > 0) {
                     return res.status(409).json({ message: "Username already exists!!" });
                 }
@@ -67,7 +67,7 @@ router.post("/", async (req, res) => {
                 const imageUrl = req.file ? `${req.protocol}://${req.get("host")}/uploads/${username}/${req.file.filename}` : null;
 
                 const [result] = await pool.query(
-                    "INSERT INTO Users (firstname, lastname, birthdate, username, hashedpassword, image) VALUES (?, ?, ?, ?, ?, ?)",
+                    "INSERT INTO Users (firstname, lastname, birthdate, username, hashedpassword, image) VALUES ($1, $2, $3, $4, $5, $6)",
                     [firstname, lastname, birthdate , username, hashedpassword, imageUrl]
                 );
 

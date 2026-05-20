@@ -1,16 +1,20 @@
-const mysql = require('mysql2');
+const { Pool } = require('pg');
 
-const pool = mysql.createPool({
-  host: process.env.host,
-  user: process.env.user,
-  password: process.env.password,
-  database: process.env.database,
-  waitForConnections: true,
-  connectionLimit: 50, // Adjust based on your needs
-  queueLimit: 0
+// Create a new connection pool using Render's single connection string
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false // Required for secure cloud connections to Render Postgres
+  },
+  max: 50, // Replaces connectionLimit: 50
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000,
 });
 
-// Use promise-based API for async/await
-const db = pool.promise();
+// Mirror the promise-based query execution of your old mysql2 setup
+const db = {
+  query: (text, params) => pool.query(text, params),
+  execute: (text, params) => pool.query(text, params), // Map execute to query since pg uses query for everything
+};
 
 module.exports = db;
