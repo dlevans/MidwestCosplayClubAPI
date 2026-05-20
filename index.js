@@ -5,7 +5,7 @@ const port = process.env.PORT || 8800;
 const cors = require('cors')
 
 
-app.use("/uploads", express.static(path.join(__dirname, "uploads")))
+app.use("/uploads", express.static(path.join(process.cwd(), "uploads")))
 
 app.use(cors())
 
