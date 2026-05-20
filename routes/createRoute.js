@@ -12,22 +12,17 @@ const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         const username = req.body.username;
         if (!username) {
-            return cb(new Error("Username is required for file upload"), null);
+            return cb(new Error("Username is required for image upload"));
         }
-
-        const uploadFolder = path.join(__dirname, "../uploads", username);
-
-        fs.mkdir(uploadFolder, { recursive: true }, (err) => {
-            if (err) {
-                return cb(err, null);
-            }
-            cb(null, uploadFolder);
-        });
+        // FIX: Replaces __dirname path splitting with absolute runtime execution directories
+        const userFolder = path.join(process.cwd(), "uploads", username);
+        fs.mkdirSync(userFolder, { recursive: true });
+        cb(null, userFolder);
     },
     filename: (req, file, cb) => {
         const filename = Date.now() + path.extname(file.originalname);
         cb(null, filename);
-    }
+    },
 });
 
 const upload = multer({ storage: storage }).single("image");

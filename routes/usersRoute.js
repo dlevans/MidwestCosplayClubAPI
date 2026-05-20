@@ -15,7 +15,8 @@ const storage = multer.diskStorage({
         if (!username) {
             return cb(new Error("Username is required for image upload"));
         }
-        const userFolder = path.join(__dirname, `../uploads/${username}`);
+        // FIX: Guarantees files land in the top level root folder layout
+        const userFolder = path.join(process.cwd(), "uploads", username);
         fs.mkdirSync(userFolder, { recursive: true });
         cb(null, userFolder);
     },
@@ -69,7 +70,6 @@ router.get("/:id", async (req, res) => {
     }
 
     try {
-        // Query the database for the user by ID
         const query = `SELECT id, firstname, lastname, email, birthdate, phonenumber, username, about, 
                        image, other, calendar, twitter, bluesky, instagram, facebook, discord, 
                        snapchat, tiktok, threads, reddit, twitch, youtube, vimeo, patreon, kofi, 
@@ -82,7 +82,6 @@ router.get("/:id", async (req, res) => {
             return res.status(404).json({ message: "User not found" });
         }
 
-        // Return the single user row natively (Postgres lowercase keys)
         return res.status(200).json(result.rows[0]);
     } catch (err) {
         console.error("Error fetching single user by ID:", err);
@@ -103,7 +102,6 @@ router.put("/update/:id", upload.single("image"), async (req, res) => {
     const { password } = req.body;
 
     try {
-        // 1. Fetch what we currently have in the database for this user
         const existingUserCheck = await db.query("SELECT birthdate FROM users WHERE id = $1", [userID]);
         
         if (existingUserCheck.rows.length === 0) {
@@ -112,12 +110,10 @@ router.put("/update/:id", upload.single("image"), async (req, res) => {
 
         const currentBirthdate = existingUserCheck.rows[0].birthdate;
 
-        // 2. Determine final birthdate value (Prioritize incoming form data, fallback to database)
         let finalBirthdate = req.body.birthdate && req.body.birthdate.trim() !== "" 
             ? req.body.birthdate 
             : currentBirthdate;
 
-        // 3. Throw a strict error if it evaluates to empty or null
         if (!finalBirthdate) {
             return res.status(400).json({ message: "Birthdate is a strictly required field and cannot be empty!" });
         }
@@ -129,15 +125,18 @@ router.put("/update/:id", upload.single("image"), async (req, res) => {
 
         let image = req.body.image;
         if (req.file) {
-            // Forces secure https layout mapping
-            image = `https://${req.get("host")}/uploads/${req.body.username}/${req.file.filename}`;
+            // FIX: Ensure correct static mapping resolution string format for Render production instances
+            const apiHost = process.env.NODE_ENV === "production" 
+                ? "midwestcosplayclubapi-1.onrender.com" 
+                : req.get("host");
+
+            image = `https://${apiHost}/uploads/${req.body.username}/${req.file.filename}`;
         }
 
-        // 4. Update your fields mapper configuration object
         const updateFields = {
             firstname: req.body.firstname || "",
             lastname: req.body.lastname || "",
-            birthdate: finalBirthdate, // Safely assigned and validated!
+            birthdate: finalBirthdate,
             username: req.body.username || "",
             about: req.body.about || "",
             email: req.body.email || "",
@@ -175,7 +174,6 @@ router.put("/update/:id", upload.single("image"), async (req, res) => {
             updateFields.hashedpassword = hashedPassword;
         }
 
-        // Builds dynamic string with safe Postgres parameter references ($1, $2, etc)
         const fields = Object.keys(updateFields).map((key, index) => `${key} = $${index + 1}`).join(", ");
         const values = Object.values(updateFields);
         
