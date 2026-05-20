@@ -110,9 +110,36 @@ router.put("/update/:id", upload.single("image"), async (req, res) => {
             birthdate: req.body.birthdate || existingUserCheck.rows[0].birthdate,
             username: req.body.username || "",
             about: req.body.about || "",
-            // ... (keep all your other fields here) ...
+            email: req.body.email || "",
+            phonenumber: req.body.phonenumber || "",
+            calendar: req.body.calendar || "",
+            twitter: req.body.twitter || "",
+            bluesky: req.body.bluesky || "",
+            instagram: req.body.instagram || "",
+            facebook: req.body.facebook || "",
+            discord: req.body.discord || "",
+            snapchat: req.body.snapchat || "",
+            tiktok: req.body.tiktok || "",
+            threads: req.body.threads || "",
+            reddit: req.body.reddit || "",
+            twitch: req.body.twitch || "",
+            youtube: req.body.youtube || "",
+            vimeo: req.body.vimeo || "",
+            patreon: req.body.patreon || "",
+            kofi: req.body.kofi || "",
+            venmo: req.body.venmo || "",
+            cashapp: req.body.cashapp || "",
+            paypal: req.body.paypal || "",
+            gofundme: req.body.gofundme || "",
+            extralife: req.body.extralife || "",
+            etsy: req.body.etsy || "",
+            complete: req.body.complete || "",
+            inprogress: req.body.inprogress || "",
+            cosplaygroup: req.body.cosplaygroup || "",
+            imawhat: req.body.imawhat || "",
             image: imageUrl,
-            location: req.body.location || ""
+            location: req.body.location || "",
+            other: req.body.other || "" // Don't forget 'other'!
         };
 
         if (req.body.password && req.body.password.trim() !== "") {
