@@ -74,7 +74,7 @@ router.put("/update/:id", upload.single("image"), async (req, res) => {
 
         let image = req.body.image;
         if (req.file) {
-            image = `${req.protocol}://${req.get("host")}/uploads/${req.body.username}/${req.file.filename}`;
+            image = `https://${req.get("host")}/uploads/${req.body.username}/${req.file.filename}`;
         }
 
         const updateFields = {
