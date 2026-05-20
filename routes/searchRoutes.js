@@ -12,9 +12,8 @@ router.get("/", async (req, res) => {
         
         console.log("GET /search", searchQuery);
 
-        // FIX: Aliased id AS "ID" for the frontend, changed table to lowercase 'users'
         const sqlQuery = `
-            SELECT id AS "ID", firstname, lastname, username, imawhat, etsy, complete, inprogress, cosplaygroup, image 
+            SELECT id, firstname, lastname, username, imawhat, etsy, complete, inprogress, cosplaygroup, image 
             FROM users 
             WHERE complete LIKE $1 OR inprogress LIKE $2 OR firstname LIKE $3 OR lastname LIKE $4 OR username LIKE $5 OR cosplaygroup LIKE $6 OR imawhat LIKE $7`;
 

@@ -40,7 +40,7 @@ router.get("/", async (req, res) => {
 
     try {
         // FIX: Aliased ID for frontend support, updated table naming schema
-        const usersQuery = `SELECT id AS "ID", username, image, about, firstname FROM users LIMIT $1 OFFSET $2`;
+        const usersQuery = `SELECT id, username, image, about, firstname FROM users LIMIT $1 OFFSET $2`;
         const usersResult = await db.query(usersQuery, [parsedLimit, offset]);
 
         const countResult = await db.query("SELECT COUNT(*) AS total FROM users");
