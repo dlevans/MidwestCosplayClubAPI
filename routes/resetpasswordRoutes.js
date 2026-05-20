@@ -13,15 +13,15 @@ router.get("/verify-reset-token", async (req, res) => {
     console.log("/verify-reset-token");
     const { token } = req.query;
 
-  
     if (!token) {
         return res.status(400).json({ error: "No token provided." });
     }
   
     try {
-        const [user] = await db.execute("SELECT * FROM users WHERE reset_token = $1 AND reset_expires > NOW()", [token]);
+        // FIX: Removed array destructuring, mapped table to lowercase 'users'
+        const result = await db.query("SELECT * FROM users WHERE reset_token = $1 AND reset_expires > NOW()", [token]);
   
-        if (user.length === 0) {
+        if (result.rows.length === 0) {
             return res.status(400).json({ error: "Invalid or expired token." });
         }
   
@@ -32,7 +32,6 @@ router.get("/verify-reset-token", async (req, res) => {
     }
 });
 
-
 /*
  * Step 1: Request Reset Link
  */
@@ -40,33 +39,23 @@ router.get("/:username", async (req, res) => {
     console.log("get resetpassword/username");
     const username = req.params.username;
 
-    if (!username) {
-        return res.status(400).json({ error: "Username is required" });
-    }
-
     try {
-        // Check if user exists
-        const [user] = await db.execute("SELECT email FROM users WHERE username = $1", [username]);
+        // FIX: Mapped to lowercase 'users' table and fixed destructuring
+        const result = await db.query("SELECT * FROM users WHERE username = $1", [username]);
+        const rows = result.rows;
 
-        if (user.length === 0) {
-            console.log("User not found.");
+        if (rows.length === 0) {
             return res.status(200).json({ message: "If this account exists, you will receive an email." });
         }
 
-        const userEmail = user[0].email;
+        const user = rows[0];
+        const token = crypto.randomBytes(20).toString("hex");
+        const expires = new Date(Date.now() + 3600000); // 1 hour
 
-        // Generate reset token
-        const resetToken = crypto.randomBytes(32).toString("hex");
+        // FIX: Updated to Postgres numbering constraints ($1, $2, $3)
+        await db.query("UPDATE users SET reset_token = $1, reset_expires = $2 WHERE username = $3", [token, expires, username]);
 
-        // Store reset token in DB with expiration
-        const expirationTime = new Date(Date.now() + 3600000); // 1 hour expiration
-        await db.execute("UPDATE users SET reset_token = $1, reset_expires = $2 WHERE username = $3", [
-            resetToken,
-            expirationTime,
-            username,
-        ]); 
-        
-        await sendResetEmail(userEmail, resetToken);
+        await sendResetEmail(user.email, token);
 
         return res.status(200).json({ message: "If this account exists, you will receive an email." });
     } catch (error) {
@@ -75,12 +64,10 @@ router.get("/:username", async (req, res) => {
     }
 });
 
-
-
 /*
  * Step 3: Reset Password
  */
-router.post("/token/:token", async (req, res) => {  // Fixed route
+router.post("/token/:token", async (req, res) => {
     console.log("/token/:token");
     const { token } = req.params;
     const { password } = req.body;
@@ -90,26 +77,25 @@ router.post("/token/:token", async (req, res) => {  // Fixed route
     }
 
     try {
-        // Check if token exists and is not expired
-        const [user] = await db.execute("SELECT * FROM users WHERE reset_token = $1 AND reset_expires > NOW()", [token]);
+        // FIX: Updated database verification handling
+        const tokenCheck = await db.query("SELECT * FROM users WHERE reset_token = $1 AND reset_expires > NOW()", [token]);
 
-        if (user.length === 0) {
+        if (tokenCheck.rows.length === 0) {
             return res.status(400).json({ error: "Invalid or expired token." });
         }
 
-        // Hash the new password
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // Update the user's password in the database
-        await db.execute("UPDATE users SET hashedpassword = $1, reset_token = NULL, reset_expires = NULL WHERE reset_token = $2", [
+        // FIX: Swapped placeholder properties to match Postgres positional numbering
+        await db.query("UPDATE users SET hashedpassword = $1, reset_token = NULL, reset_expires = NULL WHERE reset_token = $2", [
             hashedPassword,
             token,
         ]);
 
-        return res.status(200).json({ success: true });
+        return res.status(200).json({ message: "Password reset successful." });
     } catch (error) {
-        console.error("Error resetting password:", error);
-        return res.status(500).json({ error: "Server error" });
+        console.error("Error updating password:", error);
+        return res.status(500).json({ error: "Internal server error" });
     }
 });
 

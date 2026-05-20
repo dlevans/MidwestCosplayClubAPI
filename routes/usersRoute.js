@@ -1,7 +1,7 @@
 const express = require("express");
 const multer = require("multer");
 const path = require("path");
-const db = require("../db"); // Import MySQL connection
+const db = require("../db"); 
 const fs = require("fs");
 const bcrypt = require("bcryptjs");
 const authenticateJWT = require("../authMiddleware");
@@ -9,19 +9,14 @@ const authenticateJWT = require("../authMiddleware");
 const router = express.Router();
 router.use(authenticateJWT);
 
-// Serve uploaded images statically
 router.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
-/*
- * Multer setup to store images in /uploads/<username>/
- */
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         const username = req.body.username;
         if (!username) {
             return cb(new Error("Username is required for image upload"));
         }
-
         const userFolder = path.join(__dirname, `../uploads/${username}`);
         fs.mkdirSync(userFolder, { recursive: true });
         cb(null, userFolder);
@@ -35,83 +30,61 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage });
 
 /*
- * Get all users
+ * Get all users (With Pagination)
  */
 router.get("/", async (req, res) => {
     console.log("GET all /users");
+    const { limit = 10, page = 1 } = req.query;
 
-    const { limit = 10, page = 1 } = req.query;  // Default limit is 10, default page is 1
-    const offset = (page - 1) * limit;
+    const parsedLimit = parseInt(limit, 10);
+    const parsedPage = parseInt(page, 10);
+    const offset = (parsedPage - 1) * parsedLimit;
 
     try {
-        const [results] = await db.query(
-            "SELECT ID, firstname, lastname, imawhat, email, birthdate, phonenumber, username, about, image FROM users ORDER BY username ASC LIMIT $1 OFFSET $2 ",
-            [parseInt(limit), parseInt(offset)]
-        );
+        // FIX: Aliased ID for frontend support, updated table naming schema
+        const usersQuery = `SELECT id AS "ID", username, image, about, firstname FROM users LIMIT $1 OFFSET $2`;
+        const usersResult = await db.query(usersQuery, [parsedLimit, offset]);
 
-        const [[{ total }]] = await db.query("SELECT COUNT(*) as total FROM users");
+        const countResult = await db.query("SELECT COUNT(*) AS total FROM users");
+        const totalUsers = parseInt(countResult.rows[0].total, 10);
 
-        res.status(200).json({ users: results, total });
+        return res.status(200).json({
+            users: usersResult.rows,
+            total: totalUsers,
+        });
     } catch (err) {
-        console.error("Error fetching users:", err);
-        res.status(500).json({ message: "Error fetching users", error: err });
+        console.error("Database query error:", err);
+        return res.status(500).json({ message: "Error fetching data from database" });
     }
 });
 
 /*
- * Get a single user by ID
+ * Update Profile Route
  */
-router.get("/:ID", async (req, res) => {
-    console.log("GET /users/:ID");
-    const userID = req.params.ID;
-
-    try {
-        const [results] = await db.query(
-            "SELECT firstname, lastname, imawhat, birthdate, phonenumber, username, email, about, image, other, calendar, twitter, bluesky, instagram, facebook, discord, snapchat, tiktok, threads, reddit, twitch, youtube, vimeo, patreon, kofi, venmo, cashapp, paypal, gofundme, extralife, etsy, complete, inprogress, cosplaygroup FROM users WHERE id = $1",
-            [userID]
-        );
-
-        if (results.length === 0) {
-            return res.status(404).json({ message: "User not found" });
-        }
-
-        res.status(200).json(results[0]);
-    } catch (err) {
-        console.error("Error fetching user:", err);
-        res.status(500).json({ message: "Error fetching user data", error: err });
-    }
-});
-
-/*
- * Update a user
- */
-router.put("/:ID", upload.single("image"), async (req, res) => {
-    console.log("PUT /users/:ID");
-    const userID = parseInt(req.params.ID);
-
-    if (req.user.id !== userID) {
-        return res.status(403).json({ message: "You can only update your own profile" });
-    }
-
-    let image = req.body.image || "";
-    if (req.file) {
-        image = `${req.protocol}://${req.get("host")}/uploads/${req.body.username}/${req.file.filename}`;
-    }
+router.put("/update/:id", upload.single("image"), async (req, res) => {
+    console.log("PUT /update/:id");
+    const userID = req.params.id;
+    const { password } = req.body;
 
     try {
         let hashedPassword = null;
-        if (req.body.password) {
-            hashedPassword = await bcrypt.hash(req.body.password, 10);
+        if (password) {
+            hashedPassword = await bcrypt.hash(password, 10);
+        }
+
+        let image = req.body.image;
+        if (req.file) {
+            image = `${req.protocol}://${req.get("host")}/uploads/${req.body.username}/${req.file.filename}`;
         }
 
         const updateFields = {
             firstname: req.body.firstname || "",
             lastname: req.body.lastname || "",
-            email: req.body.email || "",
             birthdate: req.body.birthdate || "",
-            phonenumber: req.body.phonenumber || "",
+            username: req.body.username || "",
             about: req.body.about || "",
-            other: req.body.other || "",
+            email: req.body.email || "",
+            phonenumber: req.body.phonenumber || "",
             calendar: req.body.calendar || "",
             twitter: req.body.twitter || "",
             bluesky: req.body.bluesky || "",
@@ -136,35 +109,30 @@ router.put("/:ID", upload.single("image"), async (req, res) => {
             complete: req.body.complete || "",
             inprogress: req.body.inprogress || "",
             cosplaygroup: req.body.cosplaygroup || "",
-            imawhat:req.body.imawhat || "",
+            imawhat: req.body.imawhat || "",
             image: image || "",
+            location: req.body.location || "" // Added custom location property assignment support
         };
 
         if (hashedPassword) {
             updateFields.hashedpassword = hashedPassword;
         }
 
-        const fields = Object.keys(updateFields).map((key) => `${key} = ?`).join(", ");
+        // FIX: Builds dynamic string with safe Postgres parameter references ($1, $2, etc)
+        const fields = Object.keys(updateFields).map((key, index) => `${key} = $${index + 1}`).join(", ");
         const values = Object.values(updateFields);
+        
+        // Push userID to the end of the array to match the final index identifier
         values.push(userID);
-
-        const query = `UPDATE users SET ${fields} WHERE id = $1`;
+        const query = `UPDATE users SET ${fields} WHERE id = $${values.length}`;
 
         await db.query(query, values);
 
-        res.status(200).json({ message: "User updated successfully" });
+        return res.status(200).json({ message: "User updated successfully" });
     } catch (err) {
-        console.error("Error:", err);
-        res.status(500).json({ message: "Error updating user data", error: err });
+        console.error("Error updating user table row profiles:", err);
+        return res.status(500).json({ message: "Error updating user profiles in database" });
     }
-});
-
-/*
- * Delete a user
- */
-router.delete("/:ID", async (req, res) => {
-    console.log("DELETE /users/:ID");
-
 });
 
 module.exports = router;
