@@ -45,11 +45,11 @@ router.get("/", async (req, res) => {
 
     try {
         const [results] = await db.query(
-            "SELECT ID, firstname, lastname, imawhat, email, birthdate, phonenumber, username, about, image FROM usersORDER BY username ASC LIMIT $1 OFFSET $2 ",
+            "SELECT ID, firstname, lastname, imawhat, email, birthdate, phonenumber, username, about, image FROM users ORDER BY username ASC LIMIT $1 OFFSET $2 ",
             [parseInt(limit), parseInt(offset)]
         );
 
-        const [[{ total }]] = await db.query("SELECT COUNT(*) as total FROM Users");
+        const [[{ total }]] = await db.query("SELECT COUNT(*) as total FROM users");
 
         res.status(200).json({ users: results, total });
     } catch (err) {
@@ -67,7 +67,7 @@ router.get("/:ID", async (req, res) => {
 
     try {
         const [results] = await db.query(
-            "SELECT firstname, lastname, imawhat, birthdate, phonenumber, username, email, about, image, other, calendar, twitter, bluesky, instagram, facebook, discord, snapchat, tiktok, threads, reddit, twitch, youtube, vimeo, patreon, kofi, venmo, cashapp, paypal, gofundme, extralife, etsy, complete, inprogress, cosplaygroup FROM usersWHERE ID = $1",
+            "SELECT firstname, lastname, imawhat, birthdate, phonenumber, username, email, about, image, other, calendar, twitter, bluesky, instagram, facebook, discord, snapchat, tiktok, threads, reddit, twitch, youtube, vimeo, patreon, kofi, venmo, cashapp, paypal, gofundme, extralife, etsy, complete, inprogress, cosplaygroup FROM users WHERE id = $1",
             [userID]
         );
 
@@ -148,7 +148,7 @@ router.put("/:ID", upload.single("image"), async (req, res) => {
         const values = Object.values(updateFields);
         values.push(userID);
 
-        const query = `UPDATE usersSET ${fields} WHERE ID = $1`;
+        const query = `UPDATE users SET ${fields} WHERE id = $1`;
 
         await db.query(query, values);
 

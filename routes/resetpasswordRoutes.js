@@ -19,7 +19,7 @@ router.get("/verify-reset-token", async (req, res) => {
     }
   
     try {
-        const [user] = await db.execute("SELECT * FROM usersWHERE reset_token = $1 AND reset_expires > NOW()", [token]);
+        const [user] = await db.execute("SELECT * FROM users WHERE reset_token = $1 AND reset_expires > NOW()", [token]);
   
         if (user.length === 0) {
             return res.status(400).json({ error: "Invalid or expired token." });
@@ -46,7 +46,7 @@ router.get("/:username", async (req, res) => {
 
     try {
         // Check if user exists
-        const [user] = await db.execute("SELECT email FROM usersWHERE username = $1", [username]);
+        const [user] = await db.execute("SELECT email FROM users WHERE username = $1", [username]);
 
         if (user.length === 0) {
             console.log("User not found.");
@@ -60,7 +60,7 @@ router.get("/:username", async (req, res) => {
 
         // Store reset token in DB with expiration
         const expirationTime = new Date(Date.now() + 3600000); // 1 hour expiration
-        await db.execute("UPDATE usersSET reset_token = $1, reset_expires = $2 WHERE username = $3", [
+        await db.execute("UPDATE users SET reset_token = $1, reset_expires = $2 WHERE username = $3", [
             resetToken,
             expirationTime,
             username,
@@ -91,7 +91,7 @@ router.post("/token/:token", async (req, res) => {  // Fixed route
 
     try {
         // Check if token exists and is not expired
-        const [user] = await db.execute("SELECT * FROM usersWHERE reset_token = $1 AND reset_expires > NOW()", [token]);
+        const [user] = await db.execute("SELECT * FROM users WHERE reset_token = $1 AND reset_expires > NOW()", [token]);
 
         if (user.length === 0) {
             return res.status(400).json({ error: "Invalid or expired token." });
@@ -101,7 +101,7 @@ router.post("/token/:token", async (req, res) => {  // Fixed route
         const hashedPassword = await bcrypt.hash(password, 10);
 
         // Update the user's password in the database
-        await db.execute("UPDATE usersSET hashedpassword = $1, reset_token = NULL, reset_expires = NULL WHERE reset_token = $2", [
+        await db.execute("UPDATE users SET hashedpassword = $1, reset_token = NULL, reset_expires = NULL WHERE reset_token = $2", [
             hashedPassword,
             token,
         ]);

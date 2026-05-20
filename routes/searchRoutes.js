@@ -14,7 +14,7 @@ router.get("/", async (req, res) => {
 
         // Define the SQL query with wildcard search
         const sqlQuery = `
-            SELECT ID, firstname, lastname, username, imawhat, etsy, complete, inprogress, cosplaygroup, image FROM usersWHERE complete LIKE $1 OR inprogress LIKE $2 OR firstname LIKE $3 OR lastname LIKE $4 OR username LIKE $5 OR cosplaygroup LIKE $6 OR imawhat LIKE $7`;
+            SELECT ID, firstname, lastname, username, imawhat, etsy, complete, inprogress, cosplaygroup, image FROM users WHERE complete LIKE $1 OR inprogress LIKE $2 OR firstname LIKE $3 OR lastname LIKE $4 OR username LIKE $5 OR cosplaygroup LIKE $6 OR imawhat LIKE $7`;
 
         // Verify db connection is available
         if (!db || !db.query) 

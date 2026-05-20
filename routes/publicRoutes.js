@@ -13,7 +13,7 @@ router.get("/:username", async (req, res) => {
     const query = `SELECT firstname, lastname, username, about, imawhat, email, phonenumber, image, twitter, bluesky, instagram, facebook, discord, 
                    snapchat, tiktok, threads, reddit, twitch, youtube, vimeo, patreon, kofi, venmo, cashapp, paypal, gofundme, extralife, etsy, calendar, 
                    complete, inprogress, cosplaygroup 
-                   FROM usersWHERE username = $1`;
+                   FROM users WHERE username = $1`;
 
     // Verify db connection is available
     if (!db || !db.query) {
