@@ -71,8 +71,6 @@ router.post("/", async (req, res) => {
                     [firstname, lastname, birthdate , username, hashedpassword, imageUrl]
                 );
                 res.json({ message: "User added!", userId: result.rows[0].id });
-
-                res.json({ message: "User added!", userId: result.insertId });
             } catch (error) {
                 console.error("Database error:", error);
                 res.status(500).json({ message: "Error inserting user into the database", error });
