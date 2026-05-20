@@ -4,7 +4,7 @@ const jwt = require("jsonwebtoken");
 const pool = require("../db"); // Import our Postgres Pool from db.js
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || "snYUAu:<-NyX2>W=w`p[j~9r!(7JzaD5";
+const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = "24h";
 
 router.post("/", async (req, res) => {
