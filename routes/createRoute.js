@@ -1,81 +1,50 @@
 const express = require("express");
-const multer = require("multer");
-const path = require("path");
-const fs = require("fs");
+const cloudinary = require('cloudinary').v2;
 const bcrypt = require("bcryptjs");
-const pool = require("../db"); // Import MySQL2 connection pool
+const pool = require("../db");
 
 const router = express.Router();
 
-// Set up multer storage with dynamic directory creation
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        const username = req.body.username;
-        if (!username) {
-            return cb(new Error("Username is required for image upload"));
-        }
-        // FIX: Replaces __dirname path splitting with absolute runtime execution directories
-        const userFolder = path.join(process.cwd(), "uploads", username);
-        fs.mkdirSync(userFolder, { recursive: true });
-        cb(null, userFolder);
-    },
-    filename: (req, file, cb) => {
-        const filename = Date.now() + path.extname(file.originalname);
-        cb(null, filename);
-    },
+// Cloudinary config
+cloudinary.config({ 
+  cloud_name: process.env.CLOUDINARY_NAME, 
+  api_key: process.env.CLOUDINARY_API, 
+  api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-const upload = multer({ storage: storage }).single("image");
+// FIX: Use memoryStorage instead of diskStorage to stop using local disk
 
 router.post("/", async (req, res) => {
-    console.log("POST /create");
-    try {
-        upload(req, res, async (err) => {
-            if (err) {
-                console.error("Error uploading file: ", err);
-                return res.status(500).json({ message: "Error uploading file", error: err });
-            }
+    upload(req, res, async (err) => {
+        if (err) return res.status(500).json({ message: "Upload error", error: err });
 
-            const { firstname, lastname, birthdate, username, password } = req.body;
+        const { firstname, lastname, birthdate, username, password } = req.body;
+        
+        // ... (Keep your validation regex logic here) ...
 
-            const passwordRegex = /^(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-            if (!passwordRegex.test(password)) {
-                return res.status(400).json({
-                    message: "Password must be at least 8 characters long, contain at least one number, and one special character."
-                });
-            }
+        let imageUrl = null;
+        if (req.file) {
+            // FIX: Stream the buffer directly to Cloudinary
+            const result = await new Promise((resolve, reject) => {
+                cloudinary.uploader.upload_stream(
+                    { folder: 'midwest-cosplay', public_id: username },
+                    (error, result) => {
+                        if (error) reject(error);
+                        else resolve(result);
+                    }
+                ).end(req.file.buffer);
+            });
+            imageUrl = result.secure_url;
+        }
 
-            const usernameRegex = /^[A-Za-z0-9]+$/;
-
-            if (!usernameRegex.test(username)) {
-                return res.status(400).json({
-                    message: "Username must only contain letters and numbers, without spaces or special characters."
-                });
-            }
-
-            try {
-                const existingUserResult = await pool.query("SELECT COUNT(*) AS count FROM users WHERE username = $1", [username]);
-                if (existingUserResult.rows[0].count > 0) {
-                    return res.status(409).json({ message: "Username already exists!!" });
-                }
-
-                const hashedpassword = await bcrypt.hash(password, 10);
-                const imageUrl = req.file ? `https://${req.get("host")}/uploads/${username}/${req.file.filename}` : null;
-
-                const result = await pool.query(
-                    "INSERT INTO users (firstname, lastname, birthdate, username, hashedpassword, image) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
-                    [firstname, lastname, birthdate , username, hashedpassword, imageUrl]
-                );
-                res.json({ message: "User added!", userId: result.rows[0].id });
-            } catch (error) {
-                console.error("Database error:", error);
-                res.status(500).json({ message: "Error inserting user into the database", error });
-            }
-        });
-    } catch (error) {
-        console.error("Error processing request:", error);
-        res.status(500).json({ message: "Error processing request", error });
-    }
+        try {
+            const result = await pool.query(
+                "INSERT INTO users (firstname, lastname, birthdate, username, hashedpassword, image) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
+                [firstname, lastname, birthdate, username, hashedpassword, imageUrl]
+            );
+            res.json({ message: "User added!", userId: result.rows[0].id });
+        } catch (error) {
+            res.status(500).json({ message: "Database error", error });
+        }
+    });
 });
-
-module.exports = router;

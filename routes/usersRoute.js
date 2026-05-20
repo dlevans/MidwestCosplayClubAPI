@@ -1,5 +1,5 @@
 const express = require("express");
-const multer = require("multer");
+const cloudinary = require('cloudinary').v2;
 const path = require("path");
 const db = require("../db"); 
 const fs = require("fs");
@@ -9,24 +9,11 @@ const authenticateJWT = require("../authMiddleware");
 const router = express.Router();
 router.use(authenticateJWT);
 
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        const username = req.body.username;
-        if (!username) {
-            return cb(new Error("Username is required for image upload"));
-        }
-        // FIX: Guarantees files land in the top level root folder layout
-        const userFolder = path.join(process.cwd(), "uploads", username);
-        fs.mkdirSync(userFolder, { recursive: true });
-        cb(null, userFolder);
-    },
-    filename: (req, file, cb) => {
-        const filename = Date.now() + path.extname(file.originalname);
-        cb(null, filename);
-    },
+cloudinary.config({ 
+  cloud_name: process.env.CLOUDINARY_NAME, 
+  api_key: process.env.CLOUDINARY_API, 
+  api_secret: process.env.CLOUDINARY_API_SECRET
 });
-
-const upload = multer({ storage: storage });
 
 /*
  * Get all users (With Pagination)
@@ -131,12 +118,14 @@ router.put("/update/:id", upload.single("image"), async (req, res) => {
 
         let image = req.body.image;
         if (req.file) {
-            // FIX: Ensure correct static mapping resolution string format for Render production instances
-            const apiHost = process.env.NODE_ENV === "production" 
-                ? "midwestcosplayclubapi-1.onrender.com" 
-                : req.get("host");
+            // Upload the buffer directly to Cloudinary
+            const result = await cloudinary.uploader.upload_stream(
+                { folder: 'midwest-cosplay', public_id: req.body.username }, 
+                (error, result) => { /* handle results */ }
+            ).end(req.file.buffer);
 
-            image = `https://${apiHost}/uploads/${req.body.username}/${req.file.filename}`;
+            // Save result.secure_url into your database
+            updateFields.image = result.secure_url;
         }
 
         const updateFields = {
