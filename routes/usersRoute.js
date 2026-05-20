@@ -65,6 +65,25 @@ router.put("/update/:id", upload.single("image"), async (req, res) => {
     const { password } = req.body;
 
     try {
+        // 1. Fetch what we currently have in the database for this user
+        const existingUserCheck = await db.query("SELECT birthdate FROM users WHERE id = $1", [userID]);
+        
+        if (existingUserCheck.rows.length === 0) {
+            return res.status(404).json({ message: "User account not found." });
+        }
+
+        const currentBirthdate = existingUserCheck.rows[0].birthdate;
+
+        // 2. Determine final birthdate value (Prioritize incoming form data, fallback to database)
+        let finalBirthdate = req.body.birthdate && req.body.birthdate.trim() !== "" 
+            ? req.body.birthdate 
+            : currentBirthdate;
+
+        // 3. Throw a strict error if it evaluates to empty or null
+        if (!finalBirthdate) {
+            return res.status(400).json({ message: "Birthdate is a strictly required field and cannot be empty!" });
+        }
+
         let hashedPassword = null;
         if (password) {
             hashedPassword = await bcrypt.hash(password, 10);
@@ -72,13 +91,15 @@ router.put("/update/:id", upload.single("image"), async (req, res) => {
 
         let image = req.body.image;
         if (req.file) {
+            // Forces secure https layout mapping
             image = `https://${req.get("host")}/uploads/${req.body.username}/${req.file.filename}`;
         }
 
+        // 4. Update your fields mapper configuration object
         const updateFields = {
             firstname: req.body.firstname || "",
             lastname: req.body.lastname || "",
-            birthdate: req.body.birthdate || "",
+            birthdate: finalBirthdate, // Safely assigned and validated!
             username: req.body.username || "",
             about: req.body.about || "",
             email: req.body.email || "",
@@ -109,18 +130,17 @@ router.put("/update/:id", upload.single("image"), async (req, res) => {
             cosplaygroup: req.body.cosplaygroup || "",
             imawhat: req.body.imawhat || "",
             image: image || "",
-            location: req.body.location || "" // Added custom location property assignment support
+            location: req.body.location || ""
         };
 
         if (hashedPassword) {
             updateFields.hashedpassword = hashedPassword;
         }
 
-        // FIX: Builds dynamic string with safe Postgres parameter references ($1, $2, etc)
+        // Builds dynamic string with safe Postgres parameter references ($1, $2, etc)
         const fields = Object.keys(updateFields).map((key, index) => `${key} = $${index + 1}`).join(", ");
         const values = Object.values(updateFields);
         
-        // Push userID to the end of the array to match the final index identifier
         values.push(userID);
         const query = `UPDATE users SET ${fields} WHERE id = $${values.length}`;
 
