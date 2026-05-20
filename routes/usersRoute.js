@@ -61,7 +61,7 @@ router.get("/", async (req, res) => {
  */
 router.put("/update/:id", upload.single("image"), async (req, res) => {
     console.log("PUT /update/:id");
-    const userID = req.params.id;
+    const userID = req.params.id; 
 
     if (!userID || userID === "undefined" || isNaN(parseInt(userID))) {
         return res.status(400).json({ message: "Invalid or missing User ID parameter." });
