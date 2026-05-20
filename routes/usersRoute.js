@@ -14,6 +14,33 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
+
+/*
+ * Get a single user by their numeric ID (For population of Update form)
+ */
+router.get("/:id", async (req, res) => {
+    console.log("GET /users/:id - ID Requested:", req.params.id);
+    const userID = req.params.id;
+
+    if (!userID || isNaN(parseInt(userID))) {
+        return res.status(400).json({ message: "Invalid User ID parameter." });
+    }
+
+    try {
+        const query = `SELECT * FROM users WHERE id = $1`;
+        const result = await db.query(query, [parseInt(userID, 10)]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        return res.status(200).json(result.rows[0]);
+    } catch (err) {
+        console.error("Error fetching single user:", err);
+        return res.status(500).json({ message: "Error fetching user data", error: err.message });
+    }
+});
+
 // 2. DEFINE THE UPLOAD MIDDLEWARE
 const upload = multer({ storage: multer.memoryStorage() });
 
