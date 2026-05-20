@@ -16,6 +16,35 @@ cloudinary.config({
 
 
 /*
+ * Get all users (With Pagination)
+ */
+router.get("/", async (req, res) => {
+    console.log("GET all /users");
+    const { limit = 10, page = 1 } = req.query;
+
+    const parsedLimit = parseInt(limit, 10);
+    const parsedPage = parseInt(page, 10);
+    const offset = (parsedPage - 1) * parsedLimit;
+
+    try {
+        const usersQuery = `SELECT id, username, image, about, firstname FROM users LIMIT $1 OFFSET $2`;
+        const usersResult = await db.query(usersQuery, [parsedLimit, offset]);
+
+        const countResult = await db.query("SELECT COUNT(*) AS total FROM users");
+        const totalUsers = parseInt(countResult.rows[0].total, 10);
+
+        return res.status(200).json({
+            users: usersResult.rows,
+            total: totalUsers,
+        });
+    } catch (err) {
+        console.error("Database query error:", err);
+        return res.status(500).json({ message: "Error fetching data from database" });
+    }
+});
+
+
+/*
  * Get a single user by their numeric ID (For population of Update form)
  */
 router.get("/:id", async (req, res) => {
