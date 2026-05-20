@@ -1,10 +1,10 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const pool = require("../db"); // Import MySQL2 connection pool
+const pool = require("../db"); // Import our Postgres Pool from db.js
 
 const router = express.Router();
-const JWT_SECRET = "snYUAu:<-NyX2>W=w`p[j~9r!(7JzaD5";
+const JWT_SECRET = process.env.JWT_SECRET || "snYUAu:<-NyX2>W=w`p[j~9r!(7JzaD5";
 const JWT_EXPIRES_IN = "24h";
 
 router.post("/", async (req, res) => {
@@ -16,8 +16,9 @@ router.post("/", async (req, res) => {
   }
 
   try {
-    // Fetch user by username
-    const [rows] = await pool.query("SELECT * FROM users WHERE username = $1", [username]);
+    // 1. Capture the full Postgres result object (No square brackets around variable name)
+    const result = await pool.query("SELECT * FROM users WHERE username = $1", [username]);
+    const rows = result.rows;
 
     // Check if the user exists
     if (rows.length === 0) {
@@ -32,15 +33,18 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ message: "Invalid password!" });
     }
 
-    // Create JWT token
-    const token = jwt.sign({ id: user.ID, username: user.username }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+    // 2. Create JWT token (Changed user.ID to lowercase user.id to match the database)
+    const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 
-    // Send the token as the response
-    res.json({ token });
+    // 3. Send both token and username back to match what your React Login.js expects
+    return res.json({ 
+      token: token, 
+      username: user.username 
+    });
 
   } catch (err) {
     console.error("Database error:", err);
-    res.status(500).json({ message: "Server error during login", error: err });
+    return res.status(500).json({ message: "Server error during login", error: err });
   }
 });
 
