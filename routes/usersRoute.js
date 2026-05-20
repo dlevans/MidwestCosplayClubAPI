@@ -61,31 +61,37 @@ router.get("/", async (req, res) => {
  * Get a single user by their numeric ID (For population of Update form)
  */
 router.get("/:id", async (req, res) => {
-    console.log("GET /users/:id");
+    console.log("GET /users/:id - ID Requested:", req.params.id);
     const userID = req.params.id;
 
-    // Sanity check: verify ID is a valid number
+    // 1. Sanity check: verify ID is a valid number parameter
     if (!userID || userID === "undefined" || isNaN(parseInt(userID))) {
+        console.error("Invalid User ID string blocked:", userID);
         return res.status(400).json({ message: "Invalid or missing User ID parameter." });
     }
 
     try {
-        const query = `SELECT id, firstname, lastname, email, birthdate, phonenumber, username, about, 
-                       image, other, calendar, twitter, bluesky, instagram, facebook, discord, 
-                       snapchat, tiktok, threads, reddit, twitch, youtube, vimeo, patreon, kofi, 
-                       venmo, cashapp, paypal, gofundme, extralife, etsy, complete, inprogress, 
-                       cosplaygroup, imawhat, location FROM users WHERE id = $1`;
-                       
-        const result = await db.query(query, [userID]);
+        // 2. Query utilizing wildcard selection to capture all active Postgres layout matching rows
+        const query = `SELECT * FROM users WHERE id = $1`;
+        const result = await db.query(query, [parseInt(userID, 10)]);
 
-        if (result.rows.length === 0) {
+        // 3. Verify rows existence safely
+        if (!result || !result.rows || result.rows.length === 0) {
+            console.log(`No database record found matching User ID: ${userID}`);
             return res.status(404).json({ message: "User not found" });
         }
 
+        // 4. Send back exactly the single row data object natively
+        console.log(`Successfully retrieved database profile for User ID: ${userID}`);
         return res.status(200).json(result.rows[0]);
+
     } catch (err) {
-        console.error("Error fetching single user by ID:", err);
-        return res.status(500).json({ message: "Internal server error" });
+        // 5. Log the EXACT Postgres traceback to your Render console log tracking dashboard
+        console.error("CRITICAL EXCEPTION inside GET /users/:id route handler:", err);
+        return res.status(500).json({ 
+            message: "Internal server error inside query runner engine.", 
+            error: err.message 
+        });
     }
 });
 
