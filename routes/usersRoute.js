@@ -170,8 +170,8 @@ router.put("/update/:id", upload.single("image"), async (req, res) => {
             location: req.body.location || ""
         };
 
-        if (hashedPassword) {
-            updateFields.hashedpassword = hashedPassword;
+        if (password && password.trim() !== "") {
+            updateFields.hashedpassword = await bcrypt.hash(password, 10);
         }
 
         const fields = Object.keys(updateFields).map((key, index) => `${key} = $${index + 1}`).join(", ");
