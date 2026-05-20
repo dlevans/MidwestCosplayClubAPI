@@ -9,8 +9,6 @@ const authenticateJWT = require("../authMiddleware");
 const router = express.Router();
 router.use(authenticateJWT);
 
-router.use('/uploads', express.static(path.join(__dirname, '../uploads')));
-
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         const username = req.body.username;
