@@ -39,7 +39,6 @@ router.get("/", async (req, res) => {
     const offset = (parsedPage - 1) * parsedLimit;
 
     try {
-        // FIX: Aliased ID for frontend support, updated table naming schema
         const usersQuery = `SELECT id, username, image, about, firstname FROM users LIMIT $1 OFFSET $2`;
         const usersResult = await db.query(usersQuery, [parsedLimit, offset]);
 
@@ -53,6 +52,41 @@ router.get("/", async (req, res) => {
     } catch (err) {
         console.error("Database query error:", err);
         return res.status(500).json({ message: "Error fetching data from database" });
+    }
+});
+
+
+/*
+ * Get a single user by their numeric ID (For population of Update form)
+ */
+router.get("/:id", async (req, res) => {
+    console.log("GET /users/:id");
+    const userID = req.params.id;
+
+    // Sanity check: verify ID is a valid number
+    if (!userID || userID === "undefined" || isNaN(parseInt(userID))) {
+        return res.status(400).json({ message: "Invalid or missing User ID parameter." });
+    }
+
+    try {
+        // Query the database for the user by ID
+        const query = `SELECT id, firstname, lastname, email, birthdate, phonenumber, username, about, 
+                       image, other, calendar, twitter, bluesky, instagram, facebook, discord, 
+                       snapchat, tiktok, threads, reddit, twitch, youtube, vimeo, patreon, kofi, 
+                       venmo, cashapp, paypal, gofundme, extralife, etsy, complete, inprogress, 
+                       cosplaygroup, imawhat, location FROM users WHERE id = $1`;
+                       
+        const result = await db.query(query, [userID]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        // Return the single user row natively (Postgres lowercase keys)
+        return res.status(200).json(result.rows[0]);
+    } catch (err) {
+        console.error("Error fetching single user by ID:", err);
+        return res.status(500).json({ message: "Internal server error" });
     }
 });
 
