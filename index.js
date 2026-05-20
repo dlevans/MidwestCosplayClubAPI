@@ -9,7 +9,7 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")))
 
 app.use(cors())
 
-// Users routes
+// usersroutes
 const authRoutes = require("./routes/authRoutes");
 const usersRoute = require("./routes/usersRoute");
 const createRoute = require("./routes/createRoute");
