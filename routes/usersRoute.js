@@ -110,6 +110,8 @@ router.put("/update/:id", upload.single("image"), async (req, res) => {
             birthdate: req.body.birthdate || existingUserCheck.rows[0].birthdate,
             username: req.body.username || "",
             about: req.body.about || "",
+            imawhat: req.body.imawhat || "",
+            image: imageUrl,
             email: req.body.email || "",
             phonenumber: req.body.phonenumber || "",
             calendar: req.body.calendar || "",
@@ -136,17 +138,14 @@ router.put("/update/:id", upload.single("image"), async (req, res) => {
             complete: req.body.complete || "",
             inprogress: req.body.inprogress || "",
             cosplaygroup: req.body.cosplaygroup || "",
-            imawhat: req.body.imawhat || "",
-            image: imageUrl,
             location: req.body.location || "",
-            other: req.body.other || "" // Don't forget 'other'!
+            other: req.body.other || "" 
         };
 
         if (req.body.password && req.body.password.trim() !== "") {
             updateFields.hashedpassword = await bcrypt.hash(req.body.password, 10);
         }
 
-        // 5. Build dynamic query
         const keys = Object.keys(updateFields);
         const values = Object.values(updateFields);
         const fields = keys.map((key, index) => `${key} = $${index + 1}`).join(", ");
