@@ -85,6 +85,10 @@ router.put("/update/:id", upload.single("image"), async (req, res) => {
         return res.status(400).json({ message: "Invalid User ID." });
     }
 
+    if (parseInt(userID) !== req.user.id) {
+        return res.status(403).json({ message: "Unauthorized: You can only update your own profile." });
+    }
+
     try {
         const existingUserCheck = await db.query("SELECT birthdate, image FROM users WHERE id = $1", [userID]);
         if (existingUserCheck.rows.length === 0) return res.status(404).json({ message: "User not found." });
