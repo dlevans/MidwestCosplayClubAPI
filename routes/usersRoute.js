@@ -110,7 +110,6 @@ router.put("/update/:id", upload.single("image"), async (req, res) => {
             birthdate: req.body.birthdate || "",
             phonenumber: req.body.phonenumber || "",
             about: req.body.about || "",
-            other: req.body.other || "",
             calendar: req.body.calendar || "",
             twitter: req.body.twitter || "",
             bluesky: req.body.bluesky || "",
@@ -137,7 +136,7 @@ router.put("/update/:id", upload.single("image"), async (req, res) => {
             cosplaygroup: req.body.cosplaygroup || "",
             imawhat:req.body.imawhat || "",
             location: req.body.location || "",
-            imageUrl: req.body.imageUrl || "",
+            image: imageUrl || "",
         };
 
         if (req.body.password && req.body.password.trim() !== "") {
