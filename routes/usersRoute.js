@@ -136,7 +136,8 @@ router.put("/update/:id", upload.single("image"), async (req, res) => {
             inprogress: req.body.inprogress || "",
             cosplaygroup: req.body.cosplaygroup || "",
             imawhat:req.body.imawhat || "",
-            image: image || "",
+            location: req.body.location || "",
+            imageUrl: req.body.imageUrl || "",
         };
 
         if (req.body.password && req.body.password.trim() !== "") {
