@@ -15,6 +15,9 @@ cloudinary.config({
 });
 
 
+const upload = multer({ storage: multer.memoryStorage() });
+
+
 /*
  * Get all users (With Pagination)
  */
@@ -70,8 +73,6 @@ router.get("/:id", async (req, res) => {
     }
 });
 
-// 2. DEFINE THE UPLOAD MIDDLEWARE
-const upload = multer({ storage: multer.memoryStorage() });
 
 /*
  * Update Profile Route
@@ -88,7 +89,6 @@ router.put("/update/:id", upload.single("image"), async (req, res) => {
         const existingUserCheck = await db.query("SELECT birthdate, image FROM users WHERE id = $1", [userID]);
         if (existingUserCheck.rows.length === 0) return res.status(404).json({ message: "User not found." });
 
-        // 3. Handle Cloudinary Upload
         let imageUrl = existingUserCheck.rows[0].image; // Keep old image by default
         if (req.file) {
             const result = await new Promise((resolve, reject) => {
@@ -103,17 +103,14 @@ router.put("/update/:id", upload.single("image"), async (req, res) => {
             imageUrl = result.secure_url;
         }
 
-        // 4. Construct updateFields AFTER imageUrl is ready
         const updateFields = {
             firstname: req.body.firstname || "",
             lastname: req.body.lastname || "",
-            birthdate: req.body.birthdate || existingUserCheck.rows[0].birthdate,
-            username: req.body.username || "",
-            about: req.body.about || "",
-            imawhat: req.body.imawhat || "",
-            image: imageUrl,
             email: req.body.email || "",
+            birthdate: req.body.birthdate || "",
             phonenumber: req.body.phonenumber || "",
+            about: req.body.about || "",
+            other: req.body.other || "",
             calendar: req.body.calendar || "",
             twitter: req.body.twitter || "",
             bluesky: req.body.bluesky || "",
@@ -138,8 +135,8 @@ router.put("/update/:id", upload.single("image"), async (req, res) => {
             complete: req.body.complete || "",
             inprogress: req.body.inprogress || "",
             cosplaygroup: req.body.cosplaygroup || "",
-            location: req.body.location || "",
-            other: req.body.other || "" 
+            imawhat:req.body.imawhat || "",
+            image: image || "",
         };
 
         if (req.body.password && req.body.password.trim() !== "") {
@@ -158,6 +155,14 @@ router.put("/update/:id", upload.single("image"), async (req, res) => {
         console.error("Update error:", err);
         return res.status(500).json({ message: "Error updating profile", error: err.message });
     }
+});
+
+/*
+ * Delete a user
+ */
+router.delete("/:ID", async (req, res) => {
+    console.log("DELETE /users/:ID");
+
 });
 
 module.exports = router;
