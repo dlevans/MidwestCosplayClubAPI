@@ -1,15 +1,14 @@
 const { Pool } = require('pg');
 
 // Create a new connection pool using Render's single connection string
-const pool = new Pool({
+  const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false // Required for secure cloud connections to Render Postgres
-  },
+  ssl: {    rejectUnauthorized: false  },
   max: 50, // Replaces connectionLimit: 50
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
 });
+
 
 // Mirror the promise-based query execution of your old mysql2 setup
 const db = {

@@ -2,10 +2,12 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const pool = require("../db"); // Import our Postgres Pool from db.js
+require('dotenv').config();
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = "24h";
+
 
 router.post("/", async (req, res) => {
   console.log("POST /login");
