@@ -2,7 +2,7 @@ const express = require("express");
 const cloudinary = require('cloudinary').v2;
 const bcrypt = require("bcryptjs");
 const multer = require("multer"); // Ensure multer is imported
-const pool = require("../..db");
+const pool = require("db");
 
 const router = express.Router();
 
