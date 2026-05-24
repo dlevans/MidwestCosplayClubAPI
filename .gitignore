@@ -1,5 +1,3 @@
 node_modules/
 db_local.js
 .env
-..db.js
-.db.js
