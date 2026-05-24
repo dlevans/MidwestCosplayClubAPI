@@ -1,7 +1,7 @@
 const express = require("express");
 const cloudinary = require('cloudinary').v2;
 const multer = require("multer"); // 1. IMPORT MULTER
-const db = require("../db"); 
+const db = require("../..db"); 
 const bcrypt = require("bcryptjs");
 const authenticateJWT = require("../authMiddleware");
 
@@ -161,12 +161,5 @@ router.put("/update/:id", upload.single("image"), async (req, res) => {
     }
 });
 
-/*
- * Delete a user
- */
-router.delete("/:ID", async (req, res) => {
-    console.log("DELETE /users/:ID");
-
-});
 
 module.exports = router;
