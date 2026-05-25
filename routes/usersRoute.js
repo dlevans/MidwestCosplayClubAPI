@@ -1,7 +1,7 @@
 const express = require("express");
 const cloudinary = require('cloudinary').v2;
 const multer = require("multer"); // 1. IMPORT MULTER
-const db = require("db"); 
+const pool = require("../db");
 const bcrypt = require("bcryptjs");
 const authenticateJWT = require("../authMiddleware");
 
