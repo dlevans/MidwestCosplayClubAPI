@@ -1,5 +1,5 @@
 const express = require("express");
-const pool = require("db");
+const pool = require("../db");
 const crypto = require("crypto");
 const bcrypt = require("bcryptjs"); 
 const sendResetEmail = require("../sendResetEmail");
