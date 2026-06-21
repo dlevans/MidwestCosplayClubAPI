@@ -26,7 +26,7 @@ router.get("/:username", async (req, res) => {
     console.log("get public/username");
 
     const username = req.params.username;
-    const query = `SELECT firstname, lastname, username, about, imawhat, email, phonenumber, image, twitter, bluesky, instagram, facebook, discord, 
+    const query = `SELECT id, firstname, lastname, username, about, imawhat, email, phonenumber, image, twitter, bluesky, instagram, facebook, discord, 
                    snapchat, tiktok, threads, reddit, twitch, youtube, vimeo, patreon, kofi, venmo, cashapp, paypal, gofundme, extralife, etsy, calendar, 
                    complete, inprogress, cosplaygroup 
                    FROM users WHERE LOWER(username) = LOWER($1)`;
@@ -63,6 +63,25 @@ router.get("/:username", async (req, res) => {
             user.groups = groupsResult.rows;
         } catch (groupErr) {
             console.error("Error fetching user's groups:", groupErr);
+        }
+
+        // Fetch this user's guestbook entries, newest first. Wrapped separately
+        // so a problem here (e.g. the guestbook table not existing yet) can't
+        // take down the rest of the profile — same pattern as groups above.
+        user.guestbook = [];
+        try {
+            const guestbookResult = await db.query(
+                `SELECT gb.id, gb.message, gb.createdat, gb.authoruserid AS authorid,
+                        au.username AS authorusername, au.image AS authorimage
+                 FROM guestbook gb
+                 JOIN users au ON au.id = gb.authoruserid
+                 WHERE gb.profileuserid = $1
+                 ORDER BY gb.createdat DESC`,
+                [user.id]
+            );
+            user.guestbook = guestbookResult.rows;
+        } catch (guestbookErr) {
+            console.error("Error fetching user's guestbook:", guestbookErr);
         }
 
         // Serve OG-injected HTML to social crawlers; JSON to everyone else

@@ -20,6 +20,7 @@ const resetpasswordRoute = require("./routes/resetpasswordRoutes.js");
 
 //Public routes
 const publicRoutes = require("./routes/publicRoutes");
+const guestbookRoutes = require("./routes/guestbookRoutes");
 
 //Testing routes
 const tshirtRoutes = require("./routes/tshirtRoutes");
@@ -35,6 +36,7 @@ app.use("/createnew", createRoute);
 
 
 app.use("/public", publicRoutes);
+app.use("/guestbook", guestbookRoutes);
 
 app.use("/tshirt", tshirtRoutes);
 app.use("/copyright", copyrightRoutes); 
