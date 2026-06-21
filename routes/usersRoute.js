@@ -30,7 +30,7 @@ router.get("/", async (req, res) => {
     const offset = (parsedPage - 1) * parsedLimit;
 
     try {
-        const usersQuery = `SELECT id, username, image, about, firstname FROM users LIMIT $1 OFFSET $2`;
+        const usersQuery = `SELECT id, username, image, about, firstname FROM users ORDER BY username ASC LIMIT $1 OFFSET $2`;
         const usersResult = await db.query(usersQuery, [parsedLimit, offset]);
 
         const countResult = await db.query("SELECT COUNT(*) AS total FROM users");

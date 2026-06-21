@@ -82,7 +82,7 @@ router.get("/", async (req, res) => {
     const offset = (parsedPage - 1) * parsedLimit;
 
     try {
-        const groupsQuery = `SELECT * FROM groups ORDER BY groupid LIMIT $1 OFFSET $2`;
+        const groupsQuery = `SELECT * FROM groups ORDER BY groupname ASC LIMIT $1 OFFSET $2`;
         const groupsResult = await db.query(groupsQuery, [parsedLimit, offset]);
 
         const countResult = await db.query("SELECT COUNT(*) AS total FROM groups");
@@ -112,7 +112,7 @@ router.get("/user/:userid", async (req, res) => {
     }
 
     try {
-        const query = `SELECT * FROM groups WHERE userid = $1 ORDER BY groupid`;
+        const query = `SELECT * FROM groups WHERE userid = $1 ORDER BY groupname ASC`;
         const result = await db.query(query, [parseInt(userId, 10)]);
 
         return res.status(200).json({ groups: result.rows });
