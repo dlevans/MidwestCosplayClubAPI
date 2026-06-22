@@ -153,6 +153,21 @@ router.get("/:groupid", async (req, res) => {
     }
 });
 
+/*
+ * Check if a user is authorized to manage group members.
+ * Returns true if the user is the group owner OR an authorized group admin.
+ */
+async function isGroupAdminOrOwner(groupId, userId) {
+    const query = `
+        SELECT 1 FROM groups g
+        LEFT JOIN groupmembers gm ON g.groupid = gm.groupid AND gm.userid = $2
+        WHERE g.groupid = $1 
+          AND (g.groupownerid = $2 OR gm.is_admin = true)
+    `;
+    const result = await db.query(query, [groupId, userId]);
+    return result.rows.length > 0;
+}
+
 
 /*
  * Create a new group (Member adding a group they're part of)
