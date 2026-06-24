@@ -4,8 +4,8 @@ const db = require("../db");
 const router = express.Router();
 
 /*
- * Search users, groups, and tutorials for a single query string.
- * All three run in parallel via Promise.all for speed.
+ * Search users, groups, tutorials, and templates for a single query string.
+ * All four run in parallel via Promise.all for speed.
  */
 router.get("/", async (req, res) => {
     try {
@@ -13,9 +13,8 @@ router.get("/", async (req, res) => {
 
         console.log("GET /search - Query Input:", searchQuery);
 
-        // If the query parameter is empty, return empty results instantly
         if (!searchQuery || searchQuery.trim() === "") {
-            return res.status(200).json({ users: [], groups: [], tutorials: [] });
+            return res.status(200).json({ users: [], groups: [], tutorials: [], templates: [] });
         }
 
         if (!db || !db.query) {
@@ -23,10 +22,8 @@ router.get("/", async (req, res) => {
             return res.status(500).json({ message: "Database connection is not available" });
         }
 
-        // Trim whitespace from user input before building wildcard bounds
         const wildcardQuery = `%${searchQuery.trim()}%`;
 
-        // ILIKE for case-insensitive matching across all three tables
         const usersQuery = `
             SELECT id, firstname, lastname, username, imawhat, etsy, complete, inprogress, cosplaygroup, image
             FROM users
@@ -61,27 +58,47 @@ router.get("/", async (req, res) => {
                OR u.username            ILIKE $4
             ORDER BY t.createdat DESC`;
 
-        const [usersResult, groupsResult, tutorialsResult] = await Promise.all([
+        const templatesQuery = `
+            SELECT
+                t.templateid,
+                t.templatetitle,
+                t.templateurl,
+                t.templatedescription,
+                t.templatecategory,
+                t.templateisfree,
+                t.userid,
+                u.username,
+                u.image AS useravatar
+            FROM templates t
+            JOIN users u ON u.id = t.userid
+            WHERE t.templatetitle       ILIKE $1
+               OR t.templatedescription ILIKE $2
+               OR t.templatecategory    ILIKE $3
+               OR u.username            ILIKE $4
+            ORDER BY t.createdat DESC`;
+
+        const [usersResult, groupsResult, tutorialsResult, templatesResult] = await Promise.all([
             db.query(usersQuery, [
                 wildcardQuery, wildcardQuery, wildcardQuery,
                 wildcardQuery, wildcardQuery, wildcardQuery,
                 wildcardQuery,
             ]),
             db.query(groupsQuery, [wildcardQuery]),
-            db.query(tutorialsQuery, [
-                wildcardQuery, wildcardQuery, wildcardQuery, wildcardQuery,
-            ]),
+            db.query(tutorialsQuery, [wildcardQuery, wildcardQuery, wildcardQuery, wildcardQuery]),
+            db.query(templatesQuery, [wildcardQuery, wildcardQuery, wildcardQuery, wildcardQuery]),
         ]);
 
         console.log(
             `Search completed. Found ${usersResult.rows.length} members, ` +
-            `${groupsResult.rows.length} groups, ${tutorialsResult.rows.length} tutorials.`
+            `${groupsResult.rows.length} groups, ${tutorialsResult.rows.length} tutorials, ` +
+            `${templatesResult.rows.length} templates.`
         );
 
         return res.status(200).json({
             users:     usersResult.rows,
             groups:    groupsResult.rows,
             tutorials: tutorialsResult.rows,
+            templates: templatesResult.rows,
         });
     } catch (err) {
         console.error("Database query error inside GET /search:", err);

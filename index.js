@@ -18,6 +18,7 @@ const groupsRoute = require("./routes/groupsRoute");
 const createRoute = require("./routes/createRoute");
 const searchRoute = require("./routes/searchRoutes");
 const tutorialRoutes = require("./routes/tutorialRoutes");
+const templateRoutes = require("./routes/templateRoutes");
 const resetpasswordRoute = require("./routes/resetpasswordRoutes.js");
 
 //Public routes
@@ -36,6 +37,7 @@ app.use("/groups", groupsRoute);
 app.use("/search", searchRoute);
 app.use("/createnew", createRoute);
 app.use("/tutorials", tutorialRoutes);
+app.use("/templates", templateRoutes);
 
 
 app.use("/public", publicRoutes);
