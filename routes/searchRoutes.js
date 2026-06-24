@@ -47,6 +47,7 @@ router.get("/", async (req, res) => {
                 t.tutorialurl,
                 t.tutorialdescription,
                 t.tutorialcategory,
+                t.tutorialimage,
                 t.userid,
                 u.username,
                 u.image AS useravatar
@@ -66,6 +67,7 @@ router.get("/", async (req, res) => {
                 t.templatedescription,
                 t.templatecategory,
                 t.templateisfree,
+                t.templateimage,
                 t.userid,
                 u.username,
                 u.image AS useravatar
