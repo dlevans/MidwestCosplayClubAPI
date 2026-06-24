@@ -1,38 +1,34 @@
-const express    = require("express");
-const pool       = require("../db");
-const multer     = require("multer");
+const express         = require("express");
+const cloudinary      = require("cloudinary").v2;
+const multer          = require("multer");
+const pool            = require("../db");
 const authenticateJWT = require("../authMiddleware");
 
-const router  = express.Router();
+const router = express.Router();
 
-// Store uploads in memory — same pattern as user image upload
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits:  { fileSize: 5 * 1024 * 1024 }, // 5 MB
-  fileFilter: (_req, file, cb) => {
-    cb(null, file.mimetype.startsWith("image/"));
-  },
+// Same Cloudinary config as createRoute.js
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_NAME,
+  api_key:    process.env.CLOUDINARY_API,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-/*
- * Utility: upload a buffer to wherever your app stores images.
- * Replace the body of this function with your actual storage call
- * (S3, Cloudinary, local disk, etc.). It must return a public URL string.
- * This mirrors how CreateUser.js handles image uploads.
- */
-const saveImage = async (buffer, mimetype, filename) => {
-  // ── Example: upload to S3 ──────────────────────────────────────────────
-  // const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
-  // const s3  = new S3Client({ region: process.env.AWS_REGION });
-  // const key = `tutorials/${Date.now()}-${filename}`;
-  // await s3.send(new PutObjectCommand({
-  //   Bucket: process.env.S3_BUCKET, Key: key, Body: buffer, ContentType: mimetype,
-  // }));
-  // return `https://${process.env.S3_BUCKET}.s3.amazonaws.com/${key}`;
+// Memory storage — buffer piped directly to Cloudinary, same as createRoute.js
+const upload = multer({ storage: multer.memoryStorage() });
 
-  // ── Placeholder — swap with your actual upload logic ──────────────────
-  throw new Error("saveImage: plug in your storage provider here.");
-};
+/*
+ * Upload a buffer to Cloudinary and return the secure URL.
+ * Mirrors the upload_stream pattern in createRoute.js exactly.
+ */
+const saveImage = (buffer, folder, publicId) =>
+  new Promise((resolve, reject) => {
+    cloudinary.uploader
+      .upload_stream({ folder, public_id: publicId }, (error, result) => {
+        if (error) reject(error);
+        else resolve(result.secure_url);
+      })
+      .end(buffer);
+  });
 
 /*
  * GET /tutorials
@@ -138,7 +134,8 @@ router.post("/", authenticateJWT, upload.single("tutorialimage"), async (req, re
   let tutorialimage = null;
   if (req.file) {
     try {
-      tutorialimage = await saveImage(req.file.buffer, req.file.mimetype, req.file.originalname);
+      const publicId = `tutorial-${userid}-${Date.now()}`;
+      tutorialimage = await saveImage(req.file.buffer, "midwest-cosplay/tutorials", publicId);
     } catch (imgErr) {
       console.error("Image upload failed:", imgErr);
       return res.status(500).json({ message: "Image upload failed." });
@@ -211,7 +208,8 @@ router.put("/:tutorialid", authenticateJWT, upload.single("tutorialimage"), asyn
     let tutorialimage = existing.rows[0].tutorialimage;
     if (req.file) {
       try {
-        tutorialimage = await saveImage(req.file.buffer, req.file.mimetype, req.file.originalname);
+        const publicId = `tutorial-${userid}-${Date.now()}`;
+        tutorialimage = await saveImage(req.file.buffer, "midwest-cosplay/tutorials", publicId);
       } catch (imgErr) {
         console.error("Image upload failed:", imgErr);
         return res.status(500).json({ message: "Image upload failed." });

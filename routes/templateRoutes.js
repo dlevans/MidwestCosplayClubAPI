@@ -1,24 +1,34 @@
-const express    = require("express");
-const pool       = require("../db");
-const multer     = require("multer");
+const express         = require("express");
+const cloudinary      = require("cloudinary").v2;
+const multer          = require("multer");
+const pool            = require("../db");
 const authenticateJWT = require("../authMiddleware");
 
 const router = express.Router();
 
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits:  { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => {
-    cb(null, file.mimetype.startsWith("image/"));
-  },
+// Same Cloudinary config as createRoute.js
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_NAME,
+  api_key:    process.env.CLOUDINARY_API,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+// Memory storage — buffer piped directly to Cloudinary
+const upload = multer({ storage: multer.memoryStorage() });
+
 /*
- * Same saveImage stub as tutorialRoutes.js — plug in your storage provider.
+ * Upload a buffer to Cloudinary and return the secure URL.
+ * Mirrors the upload_stream pattern in createRoute.js exactly.
  */
-const saveImage = async (buffer, mimetype, filename) => {
-  throw new Error("saveImage: plug in your storage provider here.");
-};
+const saveImage = (buffer, folder, publicId) =>
+  new Promise((resolve, reject) => {
+    cloudinary.uploader
+      .upload_stream({ folder, public_id: publicId }, (error, result) => {
+        if (error) reject(error);
+        else resolve(result.secure_url);
+      })
+      .end(buffer);
+  });
 
 /*
  * GET /templates
@@ -111,7 +121,8 @@ router.post("/", authenticateJWT, upload.single("templateimage"), async (req, re
   let templateimage = null;
   if (req.file) {
     try {
-      templateimage = await saveImage(req.file.buffer, req.file.mimetype, req.file.originalname);
+      const publicId = `template-${userid}-${Date.now()}`;
+      templateimage = await saveImage(req.file.buffer, "midwest-cosplay/templates", publicId);
     } catch (imgErr) {
       console.error("Image upload failed:", imgErr);
       return res.status(500).json({ message: "Image upload failed." });
@@ -173,7 +184,8 @@ router.put("/:templateid", authenticateJWT, upload.single("templateimage"), asyn
     let templateimage = existing.rows[0].templateimage;
     if (req.file) {
       try {
-        templateimage = await saveImage(req.file.buffer, req.file.mimetype, req.file.originalname);
+        const publicId = `template-${userid}-${Date.now()}`;
+        templateimage = await saveImage(req.file.buffer, "midwest-cosplay/templates", publicId);
       } catch (imgErr) {
         console.error("Image upload failed:", imgErr);
         return res.status(500).json({ message: "Image upload failed." });
