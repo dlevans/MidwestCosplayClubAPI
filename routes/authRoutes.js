@@ -2,11 +2,17 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const pool = require("../db"); // Fixed: was imported as 'db' but used as 'pool' everywhere
+const authenticateJWT = require("../authMiddleware");
 require('dotenv').config();
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = "24h";
+
+// Add this route — returns 200 if token is valid, 403 if not
+router.get("/verify", authenticateJWT, (req, res) => {
+  res.status(200).json({ valid: true, user: req.user });
+});
 
 
 router.post("/", async (req, res) => {
