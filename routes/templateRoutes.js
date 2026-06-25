@@ -51,7 +51,7 @@ router.get("/", authenticateJWT, async (req, res) => {
            u.username, u.image AS useravatar
          FROM templates t
          JOIN users u ON u.id = t.userid
-         ORDER BY t.createdat DESC
+         ORDER BY t.templatetitle DESC
          LIMIT $1 OFFSET $2`,
         [limit, offset]
       ),
