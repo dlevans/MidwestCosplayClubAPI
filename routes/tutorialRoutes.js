@@ -38,7 +38,7 @@ router.get("/", authenticateJWT, async (req, res) => {
   console.log("GET /tutorials");
 
   const page   = Math.max(1, parseInt(req.query.page,  10) || 1);
-  const limit  = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 10));
+  const limit  = Math.min(500, Math.max(1, parseInt(req.query.limit, 10) || 10));
   const offset = (page - 1) * limit;
 
   try {
