@@ -141,6 +141,11 @@ router.put("/update/:id", upload.single("image"), async (req, res) => {
             imawhat:req.body.imawhat || "",
             location: req.body.location || "",
             image: imageUrl || "",
+            website:  req.body.website  || "",
+            website1: req.body.website1 || "",
+            website2: req.body.website2 || "",
+            website3: req.body.website3 || "",
+            onlyfans: req.body.onlyfans || "",
         };
 
         if (req.body.password && req.body.password.trim() !== "") {

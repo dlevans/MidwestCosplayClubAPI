@@ -27,9 +27,9 @@ router.get("/:username", async (req, res) => {
 
     const username = req.params.username;
     const query = `SELECT id, firstname, lastname, username, about, imawhat, email, phonenumber, image, twitter, bluesky, instagram, facebook, discord, 
-                   snapchat, tiktok, threads, reddit, twitch, youtube, vimeo, patreon, kofi, venmo, cashapp, paypal, gofundme, extralife, etsy, calendar, 
-                   complete, inprogress, cosplaygroup 
-                   FROM users WHERE LOWER(username) = LOWER($1)`;
+               snapchat, tiktok, threads, reddit, twitch, youtube, vimeo, patreon, kofi, venmo, cashapp, paypal, gofundme, extralife, etsy, calendar, 
+               complete, inprogress, cosplaygroup, website, website1, website2, website3, onlyfans
+               FROM users WHERE LOWER(username) = LOWER($1)`;
 
     if (!db || !db.query) {
         console.error("Database connection is not available.");
