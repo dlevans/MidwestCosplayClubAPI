@@ -63,11 +63,10 @@ router.post("/", (req, res) => {
             }
 
             const hashedpassword = await bcrypt.hash(password, 10);
-            const lowerUsername  = username.toLowerCase();
 
             const result = await pool.query(
                 "INSERT INTO users (firstname, lastname, birthdate, username, hashedpassword, image) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
-                [firstname, lastname, birthdate, lowerUsername, hashedpassword, imageUrl]
+                [firstname, lastname, birthdate, username, hashedpassword, imageUrl]
             );
 
             res.json({ message: "User added!", userId: result.rows[0].id });
