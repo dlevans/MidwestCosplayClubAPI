@@ -20,6 +20,8 @@ const searchRoute = require("./routes/searchRoutes");
 const tutorialRoutes = require("./routes/tutorialRoutes");
 const templateRoutes = require("./routes/templateRoutes");
 const resetpasswordRoute = require("./routes/resetpasswordRoutes.js");
+const adminRoute = require("./routes/admin.js");
+
 
 //Public routes
 const publicRoutes = require("./routes/publicRoutes");
@@ -38,6 +40,8 @@ app.use("/search", searchRoute);
 app.use("/createnew", createRoute);
 app.use("/tutorials", tutorialRoutes);
 app.use("/templates", templateRoutes);
+app.use("/api", adminRoute);
+
 
 
 app.use("/public", publicRoutes);

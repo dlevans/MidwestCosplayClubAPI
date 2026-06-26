@@ -202,7 +202,7 @@ router.put("/:tutorialid", authenticateJWT, upload.single("tutorialimage"), asyn
       [parseInt(tutorialid, 10)]
     );
     if (existing.rows.length === 0) return res.status(404).json({ message: "Tutorial not found." });
-    if (existing.rows[0].userid !== userid) return res.status(403).json({ message: "You can only edit your own tutorials." });
+    if (existing.rows[0].userid !== userid && !req.user.is_admin) return res.status(403).json({ message: "Not authorized." });
 
     // Upload new image if provided, otherwise keep existing
     let tutorialimage = existing.rows[0].tutorialimage;

@@ -179,7 +179,7 @@ router.put("/:templateid", authenticateJWT, upload.single("templateimage"), asyn
       [parseInt(templateid, 10)]
     );
     if (existing.rows.length === 0) return res.status(404).json({ message: "Template not found." });
-    if (existing.rows[0].userid !== userid) return res.status(403).json({ message: "You can only edit your own templates." });
+    if (existing.rows[0].userid !== userid && !req.user.is_admin) return res.status(403).json({ message: "Not authorized." });
 
     let templateimage = existing.rows[0].templateimage;
     if (req.file) {

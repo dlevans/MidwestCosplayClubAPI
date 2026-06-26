@@ -79,14 +79,14 @@ router.get("/:id", async (req, res) => {
  */
 router.put("/update/:id", upload.single("image"), async (req, res) => {
     console.log("PUT /update/:id");
-    const userID = req.params.id; 
+    const userID = req.params.id;     
 
     if (!userID || isNaN(parseInt(userID))) {
         return res.status(400).json({ message: "Invalid User ID." });
     }
 
-    if (parseInt(userID) !== req.user.id) {
-        return res.status(403).json({ message: "Unauthorized: You can only update your own profile." });
+    if (parseInt(userID) !== req.user.id && !req.user.is_admin) {
+    return res.status(403).json({ message: "Not authorized." });
     }
 
     try {
