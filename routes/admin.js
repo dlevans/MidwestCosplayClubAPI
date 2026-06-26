@@ -1,7 +1,7 @@
 // routes/admin.js
 const express = require("express");
 const pool = require("../db");
-const requireAdmin = require("../middleware/requireAdmin");
+const requireAdmin = require("../requireAdmin");
 const router = express.Router();
 
 // GET all admins

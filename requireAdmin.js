@@ -1,4 +1,4 @@
-// middleware/requireAdmin.js
+// requireAdmin.js
 const jwt = require("jsonwebtoken");
 
 module.exports = (req, res, next) => {
