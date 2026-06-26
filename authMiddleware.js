@@ -17,7 +17,8 @@ const authenticateJWT = (req, res, next) => {
     req.user = {
       id: decodedPayload.id,
       ID: decodedPayload.id,
-      username: decodedPayload.username
+      username: decodedPayload.username,
+      is_admin: decodedPayload.is_admin
     };
 
     next();
