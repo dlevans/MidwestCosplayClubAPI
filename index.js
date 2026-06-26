@@ -41,7 +41,7 @@ app.use("/search", searchRoute);
 app.use("/createnew", createRoute);
 app.use("/tutorials", tutorialRoutes);
 app.use("/templates", templateRoutes);
-app.use("/scores", scoreRoute);
+app.use("/api/scores", scoreRoute);  // must be before /api so it isn't swallowed by adminRoute
 app.use("/api", adminRoute);
 
 
