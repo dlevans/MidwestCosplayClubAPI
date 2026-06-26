@@ -6,7 +6,7 @@
 const express = require('express');
 const router  = express.Router();
 const { pool } = require('../db');          // your existing DB connection
-const { authenticate } = require('./authMiddleware'); // your existing JWT middleware
+const authenticate = require('../authMiddleware'); // authMiddleware.js is in project root
 
 // ----------------------------------------------------------
 // POST /api/scores
