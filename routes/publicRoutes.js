@@ -192,5 +192,47 @@ router.get("/group/:groupid", async (req, res) => {
 });
 
 
+/*
+* Get a single event by id or slug, with its full member list.
+* Public — no auth required, same pattern as /group/:groupid above.
+*/
+router.get("/event/:eventid", async (req, res) => {
+    console.log("get public/event/:eventid");
+    const identifier = req.params.eventid;
+
+    if (!identifier) {
+        return res.status(400).json({ message: "Invalid Event identifier." });
+    }
+
+    try {
+        const isNumericId = /^\d+$/.test(identifier);
+        const eventQuery = isNumericId
+            ? "SELECT eventid, eventname, eventimage, eventcity, eventstate, eventwebsite, eventslug FROM events WHERE eventid = $1"
+            : "SELECT eventid, eventname, eventimage, eventcity, eventstate, eventwebsite, eventslug FROM events WHERE LOWER(eventslug) = LOWER($1)";
+        const eventResult = await db.query(eventQuery, [isNumericId ? parseInt(identifier, 10) : identifier]);
+
+        if (eventResult.rows.length === 0) {
+            return res.status(404).json({ message: "Event not found" });
+        }
+
+        const event = eventResult.rows[0];
+
+        const membersResult = await db.query(
+            `SELECT u.id, u.firstname, u.lastname, u.username, u.image
+             FROM eventmembers em
+             JOIN users u ON u.id = em.userid
+             WHERE em.eventid = $1
+             ORDER BY u.username`,
+            [event.eventid]
+        );
+        event.members = membersResult.rows;
+
+        return res.status(200).json(event);
+    } catch (err) {
+        console.error("Error fetching public event:", err);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+});
+
 
 module.exports = router;
