@@ -31,7 +31,7 @@ router.use((req, res, next) => {
 // POST /api/scores
 // Body: { game: "snake" | "brickbreaker", score: 3800 }
 // ----------------------------------------------------------
-router.post('/', authenticate, async (req, res) => {
+router.post(['/', ''], authenticate, async (req, res) => {
   console.log('[scores] POST / — user from token:', JSON.stringify(req.user));
 
   const { game, score } = req.body;
