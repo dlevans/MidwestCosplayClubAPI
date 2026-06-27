@@ -65,6 +65,22 @@ router.get("/:username", async (req, res) => {
             console.error("Error fetching user's groups:", groupErr);
         }
 
+        user.events = [];
+        try {
+            const eventsResult = await db.query(
+                `SELECT e.eventid, e.eventname, e.eventimage, e.eventwebsite, e.eventslug
+                FROM eventmembers em
+                JOIN events e ON e.eventid = em.eventid
+                JOIN users u ON u.id = em.userid
+                WHERE LOWER(u.username) = LOWER($1)
+                ORDER BY e.eventname`,
+                [username]
+            );
+            user.events = eventsResult.rows;
+        } catch (groupErr) {
+            console.error("Error fetching user's events:", groupErr);
+        }
+
         // Fetch this user's guestbook entries, newest first. Wrapped separately
         // so a problem here (e.g. the guestbook table not existing yet) can't
         // take down the rest of the profile — same pattern as groups above.
