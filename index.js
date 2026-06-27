@@ -13,7 +13,7 @@ router.use((req, res, next) => {
   }
   if (req.query && Object.keys(req.query).length) {
     console.log('[scores] query:', JSON.stringify(req.query));
-  }
+  } 
 
   // Intercept the response to log the status code
   const originalJson = res.json.bind(res);
