@@ -18,6 +18,92 @@ function escapeHtml(str) {
 }
 
 /*
+* Get a single group by id or slug, with its full member list.
+* Public — no auth required, same as the /public/:username route above.
+*/
+router.get("/group/:groupid", async (req, res) => {
+    console.log("get public/group/:groupid");
+    const identifier = req.params.groupid;
+
+    if (!identifier) {
+        return res.status(400).json({ message: "Invalid Group identifier." });
+    }
+
+    try {
+        const isNumericId = /^\d+$/.test(identifier);
+        const groupQuery = isNumericId
+            ? "SELECT groupid, groupname, groupimage, groupcity, groupstate, groupwebsite FROM groups WHERE groupid = $1"
+            : "SELECT groupid, groupname, groupimage, groupcity, groupstate, groupwebsite FROM groups WHERE LOWER(groupslug) = LOWER($1)";
+        const groupResult = await db.query(groupQuery, [isNumericId ? parseInt(identifier, 10) : identifier]);
+
+        if (groupResult.rows.length === 0) {
+            return res.status(404).json({ message: "Group not found" });
+        }
+
+        const group = groupResult.rows[0];
+
+        const membersResult = await db.query(
+            `SELECT u.id, u.firstname, u.lastname, u.username, u.image
+             FROM groupmembers gm
+             JOIN users u ON u.id = gm.userid
+             WHERE gm.groupid = $1
+             ORDER BY u.username`,
+            [group.groupid]
+        );
+        group.members = membersResult.rows;
+
+        return res.status(200).json(group);
+    } catch (err) {
+        console.error("Error fetching public group:", err);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+});
+
+
+/*
+* Get a single event by id or slug, with its full member list.
+* Public — no auth required, same pattern as /group/:groupid above.
+*/
+router.get("/event/:eventid", async (req, res) => {
+    console.log("get public/event/:eventid");
+    const identifier = req.params.eventid;
+
+    if (!identifier) {
+        return res.status(400).json({ message: "Invalid Event identifier." });
+    }
+
+    try {
+        const isNumericId = /^\d+$/.test(identifier);
+        const eventQuery = isNumericId
+            ? "SELECT eventid, eventname, eventimage, eventcity, eventstate, eventwebsite, eventslug, eventownerid FROM events WHERE eventid = $1"
+            : "SELECT eventid, eventname, eventimage, eventcity, eventstate, eventwebsite, eventslug, eventownerid FROM events WHERE LOWER(eventslug) = LOWER($1)";
+        const eventResult = await db.query(eventQuery, [isNumericId ? parseInt(identifier, 10) : identifier]);
+
+        if (eventResult.rows.length === 0) {
+            return res.status(404).json({ message: "Event not found" });
+        }
+
+        const event = eventResult.rows[0];
+
+        const membersResult = await db.query(
+            `SELECT u.id, u.firstname, u.lastname, u.username, u.image
+             FROM eventmembers em
+             JOIN users u ON u.id = em.userid
+             WHERE em.eventid = $1
+             ORDER BY u.username`,
+            [event.eventid]
+        );
+        event.members = membersResult.rows;
+
+        return res.status(200).json(event);
+    } catch (err) {
+        console.error("Error fetching public event:", err);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+});
+
+
+/*
 * Get a single user by username.
 * - Social crawlers (Facebook, etc.) receive HTML with dynamic OG tags injected.
 * - All other requests receive the normal JSON response.
@@ -145,91 +231,6 @@ router.get("/:username", async (req, res) => {
         return res.status(200).json(user);
     } catch (err) {
         console.error("Error fetching user:", err);
-        return res.status(500).json({ message: "Internal server error" });
-    }
-});
-
-/*
-* Get a single group by id or slug, with its full member list.
-* Public — no auth required, same as the /public/:username route above.
-*/
-router.get("/group/:groupid", async (req, res) => {
-    console.log("get public/group/:groupid");
-    const identifier = req.params.groupid;
-
-    if (!identifier) {
-        return res.status(400).json({ message: "Invalid Group identifier." });
-    }
-
-    try {
-        const isNumericId = /^\d+$/.test(identifier);
-        const groupQuery = isNumericId
-            ? "SELECT groupid, groupname, groupimage, groupcity, groupstate, groupwebsite FROM groups WHERE groupid = $1"
-            : "SELECT groupid, groupname, groupimage, groupcity, groupstate, groupwebsite FROM groups WHERE LOWER(groupslug) = LOWER($1)";
-        const groupResult = await db.query(groupQuery, [isNumericId ? parseInt(identifier, 10) : identifier]);
-
-        if (groupResult.rows.length === 0) {
-            return res.status(404).json({ message: "Group not found" });
-        }
-
-        const group = groupResult.rows[0];
-
-        const membersResult = await db.query(
-            `SELECT u.id, u.firstname, u.lastname, u.username, u.image
-             FROM groupmembers gm
-             JOIN users u ON u.id = gm.userid
-             WHERE gm.groupid = $1
-             ORDER BY u.username`,
-            [group.groupid]
-        );
-        group.members = membersResult.rows;
-
-        return res.status(200).json(group);
-    } catch (err) {
-        console.error("Error fetching public group:", err);
-        return res.status(500).json({ message: "Internal server error" });
-    }
-});
-
-
-/*
-* Get a single event by id or slug, with its full member list.
-* Public — no auth required, same pattern as /group/:groupid above.
-*/
-router.get("/event/:eventid", async (req, res) => {
-    console.log("get public/event/:eventid");
-    const identifier = req.params.eventid;
-
-    if (!identifier) {
-        return res.status(400).json({ message: "Invalid Event identifier." });
-    }
-
-    try {
-        const isNumericId = /^\d+$/.test(identifier);
-        const eventQuery = isNumericId
-            ? "SELECT eventid, eventname, eventimage, eventcity, eventstate, eventwebsite, eventslug FROM events WHERE eventid = $1"
-            : "SELECT eventid, eventname, eventimage, eventcity, eventstate, eventwebsite, eventslug FROM events WHERE LOWER(eventslug) = LOWER($1)";
-        const eventResult = await db.query(eventQuery, [isNumericId ? parseInt(identifier, 10) : identifier]);
-
-        if (eventResult.rows.length === 0) {
-            return res.status(404).json({ message: "Event not found" });
-        }
-
-        const event = eventResult.rows[0];
-
-        const membersResult = await db.query(
-            `SELECT u.id, u.firstname, u.lastname, u.username, u.image
-             FROM eventmembers em
-             JOIN users u ON u.id = em.userid
-             WHERE em.eventid = $1
-             ORDER BY u.username`,
-            [event.eventid]
-        );
-        event.members = membersResult.rows;
-
-        return res.status(200).json(event);
-    } catch (err) {
-        console.error("Error fetching public event:", err);
         return res.status(500).json({ message: "Internal server error" });
     }
 });
