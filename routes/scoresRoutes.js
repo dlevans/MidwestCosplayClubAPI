@@ -43,7 +43,7 @@ router.post(['/', ''], authenticate, async (req, res) => {
     return res.status(400).json({ error: 'Invalid game or score.' });
   }
 
-  const validGames = ['snake', 'brickbreaker'];
+  const validGames = ['snake', 'brickbreaker', 'memory'];
   if (!validGames.includes(game)) {
     console.log('[scores] POST / — unknown game:', game);
     return res.status(400).json({ error: `Unknown game: ${game}` });
@@ -75,7 +75,7 @@ router.get('/top', authenticate, async (req, res) => {
 
   const { game, limit = 10 } = req.query;
 
-  const validGames = ['snake', 'brickbreaker'];
+  const validGames = ['snake', 'brickbreaker', 'memory'];
   if (!validGames.includes(game)) {
     console.log('[scores] GET /top — unknown game:', game);
     return res.status(400).json({ error: `Unknown game: ${game}` });
@@ -111,7 +111,7 @@ router.get('/me', authenticate, async (req, res) => {
   const { game } = req.query;
   const userId = req.user?.id;
 
-  const validGames = ['snake', 'brickbreaker'];
+  const validGames = ['snake', 'brickbreaker', 'memory'];
   if (!validGames.includes(game)) {
     console.log('[scores] GET /me — unknown game:', game);
     return res.status(400).json({ error: `Unknown game: ${game}` });
