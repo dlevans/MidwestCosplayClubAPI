@@ -98,7 +98,7 @@ router.get('/top', authenticate, async (req, res) => {
     console.error('[scores] GET /top — full error:', err);
     return res.status(500).json({ error: 'Could not fetch scores.' });
   }
-});
+}); 
 
 // ----------------------------------------------------------
 // GET /api/scores/me?game=snake
