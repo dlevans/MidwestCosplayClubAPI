@@ -354,7 +354,9 @@ router.get("/:eventid/members/search", async (req, res) => {
 
 
 /*
- * Add a member to a event (Owner only)
+ * Add a member to an event.
+ * - Any logged-in user can add themselves.
+ * - Only the event owner can add someone else.
  */
 router.post("/:eventid/members", async (req, res) => {
     console.log("POST /events/:eventid/members");
@@ -369,12 +371,17 @@ router.post("/:eventid/members", async (req, res) => {
         return res.status(400).json({ message: "A valid userid is required." });
     }
 
+    const targetUserID = parseInt(userid, 10);
+    const isSelf = req.user.id === targetUserID;
+
     try {
         const eventCheck = await db.query("SELECT eventownerid FROM events WHERE eventid = $1", [eventID]);
         if (eventCheck.rows.length === 0) return res.status(404).json({ message: "Event not found." });
 
-        if (eventCheck.rows[0].eventownerid !== req.user.id) {
-            return res.status(403).json({ message: "Unauthorized: Only the event owner can add members." });
+        const isOwner = eventCheck.rows[0].eventownerid === req.user.id;
+
+        if (!isSelf && !isOwner) {
+            return res.status(403).json({ message: "Unauthorized: You can only add yourself to an event." });
         }
 
         const insertQuery = `
@@ -382,12 +389,12 @@ router.post("/:eventid/members", async (req, res) => {
             VALUES ($1, $2)
             RETURNING *
         `;
-        const result = await db.query(insertQuery, [eventID, userid]);
+        const result = await db.query(insertQuery, [eventID, targetUserID]);
 
         return res.status(201).json({ message: "Member added successfully", member: result.rows[0] });
     } catch (err) {
         if (err.code === "23505") {
-            return res.status(409).json({ message: "This user is already a member of the event." });
+            return res.status(409).json({ message: "You are already marked as an attendee of this event." });
         }
         console.error("Add member error:", err);
         return res.status(500).json({ message: "Error adding member", error: err.message });
@@ -396,26 +403,32 @@ router.post("/:eventid/members", async (req, res) => {
 
 
 /*
- * Remove a member from a event (Owner only)
+ * Remove a member from an event.
+ * - Any logged-in user can remove themselves.
+ * - Only the event owner can remove someone else.
  */
 router.delete("/:eventid/members/:userid", async (req, res) => {
     console.log("DELETE /events/:eventid/members/:userid");
     const eventID = req.params.eventid;
-    const memberUserID = req.params.userid;
+    const memberUserID = parseInt(req.params.userid, 10);
 
     if (!eventID || isNaN(parseInt(eventID))) {
         return res.status(400).json({ message: "Invalid Event ID." });
     }
-    if (!memberUserID || isNaN(parseInt(memberUserID))) {
+    if (!memberUserID || isNaN(memberUserID)) {
         return res.status(400).json({ message: "Invalid User ID." });
     }
+
+    const isSelf = req.user.id === memberUserID;
 
     try {
         const eventCheck = await db.query("SELECT eventownerid FROM events WHERE eventid = $1", [eventID]);
         if (eventCheck.rows.length === 0) return res.status(404).json({ message: "Event not found." });
 
-        if (eventCheck.rows[0].eventownerid !== req.user.id) {
-            return res.status(403).json({ message: "Unauthorized: Only the event owner can remove members." });
+        const isOwner = eventCheck.rows[0].eventownerid === req.user.id;
+
+        if (!isSelf && !isOwner) {
+            return res.status(403).json({ message: "Unauthorized: You can only remove yourself from an event." });
         }
 
         await db.query("DELETE FROM eventmembers WHERE eventid = $1 AND userid = $2", [eventID, memberUserID]);
