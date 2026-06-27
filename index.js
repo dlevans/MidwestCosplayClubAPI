@@ -21,7 +21,7 @@ router.use((req, res, next) => {
     console.log(`[scores] response ${res.statusCode}:`, JSON.stringify(payload));
     return originalJson(payload);
   };
-
+ 
   next();
 });
 

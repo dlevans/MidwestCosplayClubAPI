@@ -20,7 +20,7 @@ router.use((req, res, next) => {
   res.json = (payload) => {
     console.log(`[scores] response ${res.statusCode}:`, JSON.stringify(payload));
     return originalJson(payload);
-  };
+  }; 
 
   next();
 });
