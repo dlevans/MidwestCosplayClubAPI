@@ -34,7 +34,7 @@ const saveImage = (buffer, folder, publicId) =>
  * GET /tutorials
  * Paginated list, joined with the submitting user's avatar and username.
  */
-router.get("/", authenticateJWT, async (req, res) => {
+router.get("/", async (req, res) => {
   console.log("GET /tutorials");
 
   const page   = Math.max(1, parseInt(req.query.page,  10) || 1);
@@ -74,7 +74,7 @@ router.get("/", authenticateJWT, async (req, res) => {
  * GET /tutorials/:tutorialid
  * Single tutorial — used by the edit form.
  */
-router.get("/:tutorialid", authenticateJWT, async (req, res) => {
+router.get("/:tutorialid", async (req, res) => {
   console.log("GET /tutorials/:tutorialid");
 
   const { tutorialid } = req.params;

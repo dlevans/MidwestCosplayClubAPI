@@ -33,7 +33,7 @@ const saveImage = (buffer, folder, publicId) =>
 /*
  * GET /templates
  */
-router.get("/", authenticateJWT, async (req, res) => {
+router.get("/", async (req, res) => {
   console.log("GET /templates");
 
   const page   = Math.max(1, parseInt(req.query.page,  10) || 1);
@@ -73,7 +73,7 @@ router.get("/", authenticateJWT, async (req, res) => {
 /*
  * GET /templates/:templateid
  */
-router.get("/:templateid", authenticateJWT, async (req, res) => {
+router.get("/:templateid", async (req, res) => {
   console.log("GET /templates/:templateid");
 
   const { templateid } = req.params;
