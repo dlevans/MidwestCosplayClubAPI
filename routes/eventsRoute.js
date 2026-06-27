@@ -48,7 +48,7 @@ function ensureNonNumericSlug(base) {
  * another event, appending -2, -3, etc. on collision. Pass excludeeventId
  * when updating a event so it doesn't collide with its own existing slug.
  */
-async function generateUniqueSlug(eventname, excludeeventId = null) {
+async function generateUniqueSlug(eventname, excludeEventId = null) {
     const base = ensureNonNumericSlug(slugify(eventname));
     let slug = base;
     let counter = 2;
