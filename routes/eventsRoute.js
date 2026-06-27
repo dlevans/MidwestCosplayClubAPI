@@ -48,7 +48,7 @@ function ensureNonNumericSlug(base) {
  * another event, appending -2, -3, etc. on collision. Pass excludeeventId
  * when updating a event so it doesn't collide with its own existing slug.
  */
-async function generateUniqueSlug(eventname, excludeEventId = null) {
+async function generateUniqueSlug(eventname, excludeeventId = null) {
     const base = ensureNonNumericSlug(slugify(eventname));
     let slug = base;
     let counter = 2;
@@ -122,36 +122,6 @@ router.get("/user/:userid", async (req, res) => {
     }
 });
 
-
-/*
- * Get a single event by its numeric ID OR its slug.
- * Used to populate the Update form (by ID) and the public event page (by slug).
- */
-router.get("/:eventid", async (req, res) => {
-    console.log("GET /events/:eventid - identifier requested:", req.params.eventid);
-    const identifier = req.params.eventid;
-
-    if (!identifier) {
-        return res.status(400).json({ message: "Invalid Event identifier." });
-    }
-
-    try {
-        const isNumericId = /^\d+$/.test(identifier);
-        const query = isNumericId
-            ? `SELECT * FROM events WHERE eventid = $1`
-            : `SELECT * FROM events WHERE eventslug = $1`;
-        const result = await db.query(query, [isNumericId ? parseInt(identifier, 10) : identifier]);
-
-        if (result.rows.length === 0) {
-            return res.status(404).json({ message: "Event not found" });
-        }
-
-        return res.status(200).json(result.rows[0]);
-    } catch (err) {
-        console.error("Error fetching single event:", err);
-        return res.status(500).json({ message: "Error fetching event data", error: err.message });
-    }
-});
 
 /*
  * Check if a user is authorized to manage event members.
@@ -454,6 +424,38 @@ router.delete("/:eventid/members/:userid", async (req, res) => {
     } catch (err) {
         console.error("Remove member error:", err);
         return res.status(500).json({ message: "Error removing member", error: err.message });
+    }
+});
+
+
+/*
+ * Get a single event by its numeric ID OR its slug.
+ * Must be registered AFTER all /:eventid/members* routes so Express doesn't
+ * swallow requests like /123/members/search by matching /:eventid first.
+ */
+router.get("/:eventid", async (req, res) => {
+    console.log("GET /events/:eventid - identifier requested:", req.params.eventid);
+    const identifier = req.params.eventid;
+
+    if (!identifier) {
+        return res.status(400).json({ message: "Invalid Event identifier." });
+    }
+
+    try {
+        const isNumericId = /^\d+$/.test(identifier);
+        const query = isNumericId
+            ? `SELECT * FROM events WHERE eventid = $1`
+            : `SELECT * FROM events WHERE eventslug = $1`;
+        const result = await db.query(query, [isNumericId ? parseInt(identifier, 10) : identifier]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: "Event not found" });
+        }
+
+        return res.status(200).json(result.rows[0]);
+    } catch (err) {
+        console.error("Error fetching single event:", err);
+        return res.status(500).json({ message: "Error fetching event data", error: err.message });
     }
 });
 
