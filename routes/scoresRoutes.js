@@ -1,7 +1,7 @@
 const express = require('express');
 const router  = express.Router();
-const { pool } = require('./db');
-const authenticate = require('./authMiddleware');
+const { pool } = require('../db');
+const authenticate = require('../authMiddleware');
 
 // ----------------------------------------------------------
 // Request logger — fires for every /api/scores/* hit
@@ -20,7 +20,7 @@ router.use((req, res, next) => {
   res.json = (payload) => {
     console.log(`[scores] response ${res.statusCode}:`, JSON.stringify(payload));
     return originalJson(payload);
-  }; 
+  };
 
   next();
 });
@@ -98,7 +98,7 @@ router.get('/top', authenticate, async (req, res) => {
     console.error('[scores] GET /top — full error:', err);
     return res.status(500).json({ error: 'Could not fetch scores.' });
   }
-}); 
+});
 
 // ----------------------------------------------------------
 // GET /api/scores/me?game=snake
