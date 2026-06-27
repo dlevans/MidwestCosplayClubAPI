@@ -1,6 +1,6 @@
 const express = require('express');
 const router  = express.Router();
-const { pool } = require('../db');
+const db = require('../db');
 const authenticate = require('../authMiddleware');
 
 // ----------------------------------------------------------
@@ -50,7 +50,7 @@ router.post('/', authenticate, async (req, res) => {
   console.log(`[scores] POST / — inserting: userId=${userId} username=${username} game=${game} score=${score}`);
 
   try {
-    const result = await pool.query(
+    const result = await db.query(
       `INSERT INTO game_scores (user_id, username, game, score)
        VALUES ($1, $2, $3, $4)
        RETURNING id, score, created_at`,
@@ -83,7 +83,7 @@ router.get('/top', authenticate, async (req, res) => {
   console.log(`[scores] GET /top — querying: game=${game} limit=${cap}`);
 
   try {
-    const result = await pool.query(
+    const result = await db.query(
       `SELECT id, username, score, created_at
        FROM game_scores
        WHERE game = $1
@@ -98,7 +98,7 @@ router.get('/top', authenticate, async (req, res) => {
     console.error('[scores] GET /top — full error:', err);
     return res.status(500).json({ error: 'Could not fetch scores.' });
   }
-});
+}); 
 
 // ----------------------------------------------------------
 // GET /api/scores/me?game=snake
@@ -118,7 +118,7 @@ router.get('/me', authenticate, async (req, res) => {
   console.log(`[scores] GET /me — querying: userId=${userId} game=${game}`);
 
   try {
-    const result = await pool.query(
+    const result = await db.query(
       `SELECT id, score, created_at
        FROM game_scores
        WHERE user_id = $1 AND game = $2
