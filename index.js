@@ -1,7 +1,7 @@
 const express = require('express');
 const router  = express.Router();
 const db = require('./db');
-const authenticate = require('../authMiddleware');
+const authenticate = require('./authMiddleware');
 
 // ----------------------------------------------------------
 // Request logger — fires for every /api/scores/* hit
