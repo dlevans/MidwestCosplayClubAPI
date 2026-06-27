@@ -1,138 +1,133 @@
-const express = require('express');
-const router  = express.Router();
-const db = require('./db');
-const authenticate = require('./authMiddleware');
+const express = require("express");
+const path = require("path"); 
+const app = express();
+const port = process.env.PORT || 8800;
+const cors = require('cors')
+const db = require("./db");
 
-// ----------------------------------------------------------
-// Request logger — fires for every /api/scores/* hit
-// ----------------------------------------------------------
-router.use((req, res, next) => {
-  console.log(`[scores] ${req.method} ${req.originalUrl}`);
-  if (req.body && Object.keys(req.body).length) {
-    console.log('[scores] body:', JSON.stringify(req.body));
-  }
-  if (req.query && Object.keys(req.query).length) {
-    console.log('[scores] query:', JSON.stringify(req.query));
-  } 
 
-  // Intercept the response to log the status code
-  const originalJson = res.json.bind(res);
-  res.json = (payload) => {
-    console.log(`[scores] response ${res.statusCode}:`, JSON.stringify(payload));
-    return originalJson(payload);
-  };
- 
-  next();
+app.use(cors())
+// Middleware
+app.use(express.json());
+app.use(express.urlencoded({ extended: true })); 
+
+// usersroutes
+const authRoutes = require("./routes/authRoutes");
+const usersRoute = require("./routes/usersRoute");
+const groupsRoute = require("./routes/groupsRoute");
+const createRoute = require("./routes/createRoute");
+const searchRoute = require("./routes/searchRoutes");
+const tutorialRoutes = require("./routes/tutorialRoutes");
+const templateRoutes = require("./routes/templateRoutes");
+const resetpasswordRoute = require("./routes/resetpasswordRoutes.js");
+const adminRoute = require("./routes/admin.js");
+const scoreRoute = require("./routes/scoresRoutes.js")
+
+
+//Public routes
+const publicRoutes = require("./routes/publicRoutes");
+const guestbookRoutes = require("./routes/guestbookRoutes");
+
+//Testing routes
+const tshirtRoutes = require("./routes/tshirtRoutes");
+const copyrightRoutes = require("./routes/copyrightRoutes");
+
+// Use routes
+app.use("/login", authRoutes);
+app.use("/resetpassword", resetpasswordRoute);
+app.use("/users", usersRoute);
+app.use("/groups", groupsRoute);
+app.use("/search", searchRoute);
+app.use("/createnew", createRoute);
+app.use("/tutorials", tutorialRoutes);
+app.use("/templates", templateRoutes);
+app.use("/api/scores", scoreRoute);  // must be before /api so it isn't swallowed by adminRoute
+app.use("/api", adminRoute);
+
+
+
+app.use("/public", publicRoutes);
+app.use("/guestbook", guestbookRoutes);
+
+app.use("/tshirt", tshirtRoutes);
+app.use("/copyright", copyrightRoutes); 
+
+app.get("/sitemap", async (req, res) => {
+    try {
+        // Fetch public records from the database
+        const usersResult = await db.query("SELECT username FROM users ORDER BY id DESC");
+        
+        let groupsResult = { rows: [] };
+        try {
+            groupsResult = await db.query("SELECT groupslug FROM groups WHERE groupslug IS NOT NULL");
+        } catch (e) {
+            console.log("Groups table check skipped or not present.");
+        }
+
+        const domain = "https://midwestcosplay.club";
+        const currentDate = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
+
+        // Core static URLs
+        const staticPages = [
+            "",
+            "/calendar",
+            "/tutorials",
+            "/measurements",
+            "/search",
+            "/login",
+            "/games"
+        ];
+
+        // Build the XML string
+        let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+        xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
+
+        // Map Static Pages
+        staticPages.forEach(page => {
+            xml += `  <url>\n`;
+            xml += `    <loc>${domain}${page}</loc>\n`;
+            xml += `    <lastmod>${currentDate}</lastmod>\n`;
+            xml += `    <changefreq>weekly</changefreq>\n`;
+            xml += `    <priority>${page === "" ? "1.0" : "0.8"}</priority>\n`;
+            xml += `  </url>\n`;
+        });
+
+        // Map User Profiles
+        usersResult.rows.forEach(user => {
+            if (user.username) {
+                xml += `  <url>\n`;
+                xml += `    <loc>${domain}/public/${encodeURIComponent(user.username)}</loc>\n`;
+                xml += `    <lastmod>${currentDate}</lastmod>\n`;
+                xml += `    <changefreq>weekly</changefreq>\n`;
+                xml += `    <priority>0.6</priority>\n`;
+                xml += `  </url>\n`;
+            }
+        });
+
+        // Map Groups
+        groupsResult.rows.forEach(group => {
+            if (group.groupslug) {
+                xml += `  <url>\n`;
+                xml += `    <loc>${domain}/public/group/${encodeURIComponent(group.groupslug.toLowerCase())}</loc>\n`;
+                xml += `    <lastmod>${currentDate}</lastmod>\n`;
+                xml += `    <changefreq>weekly</changefreq>\n`;
+                xml += `    <priority>0.5</priority>\n`;
+                xml += `  </url>\n`;
+            }
+        });
+
+        xml += `</urlset>`;
+
+        // Force XML content type headers so search engines parse it natively
+        res.header("Content-Type", "application/xml");
+        return res.status(200).send(xml);
+
+    } catch (error) {
+        console.error("Dynamic sitemap generation failed:", error);
+        return res.status(500).send("Error generating sitemap");
+    }
 });
 
-// ----------------------------------------------------------
-// POST /api/scores
-// Body: { game: "snake" | "brickbreaker", score: 3800 }
-// ----------------------------------------------------------
-router.post('/', authenticate, async (req, res) => {
-  console.log('[scores] POST / — user from token:', JSON.stringify(req.user));
-
-  const { game, score } = req.body;
-  const userId   = req.user?.id;
-  const username = req.user?.username;
-
-  if (!game || typeof score !== 'number' || score < 0) {
-    console.log('[scores] POST / — validation failed: game =', game, '| score =', score, '| typeof score =', typeof score);
-    return res.status(400).json({ error: 'Invalid game or score.' });
-  }
-
-  const validGames = ['snake', 'brickbreaker'];
-  if (!validGames.includes(game)) {
-    console.log('[scores] POST / — unknown game:', game);
-    return res.status(400).json({ error: `Unknown game: ${game}` });
-  }
-
-  console.log(`[scores] POST / — inserting: userId=${userId} username=${username} game=${game} score=${score}`);
-
-  try {
-    const result = await db.query(
-      `INSERT INTO game_scores (user_id, username, game, score)
-       VALUES ($1, $2, $3, $4)
-       RETURNING id, score, created_at`,
-      [userId, username, game, score]
-    );
-    console.log('[scores] POST / — insert succeeded, row:', JSON.stringify(result.rows[0]));
-    return res.status(201).json(result.rows[0]);
-  } catch (err) {
-    console.error('[scores] POST / — DB error:', err.message);
-    console.error('[scores] POST / — full error:', err);
-    return res.status(500).json({ error: 'Could not save score.' });
-  }
+app.listen(port, () => {
+    console.log(`Server running on port ${port}`);
 });
-
-// ----------------------------------------------------------
-// GET /api/scores/top?game=snake&limit=10
-// ----------------------------------------------------------
-router.get('/top', authenticate, async (req, res) => {
-  console.log('[scores] GET /top — user from token:', JSON.stringify(req.user));
-
-  const { game, limit = 10 } = req.query;
-
-  const validGames = ['snake', 'brickbreaker'];
-  if (!validGames.includes(game)) {
-    console.log('[scores] GET /top — unknown game:', game);
-    return res.status(400).json({ error: `Unknown game: ${game}` });
-  }
-
-  const cap = Math.min(parseInt(limit, 10) || 10, 100);
-  console.log(`[scores] GET /top — querying: game=${game} limit=${cap}`);
-
-  try {
-    const result = await db.query(
-      `SELECT id, username, score, created_at
-       FROM game_scores
-       WHERE game = $1
-       ORDER BY score DESC
-       LIMIT $2`,
-      [game, cap]
-    );
-    console.log(`[scores] GET /top — returned ${result.rows.length} rows`);
-    return res.json(result.rows);
-  } catch (err) {
-    console.error('[scores] GET /top — DB error:', err.message);
-    console.error('[scores] GET /top — full error:', err);
-    return res.status(500).json({ error: 'Could not fetch scores.' });
-  }
-}); 
-
-// ----------------------------------------------------------
-// GET /api/scores/me?game=snake
-// ----------------------------------------------------------
-router.get('/me', authenticate, async (req, res) => {
-  console.log('[scores] GET /me — user from token:', JSON.stringify(req.user));
-
-  const { game } = req.query;
-  const userId = req.user?.id;
-
-  const validGames = ['snake', 'brickbreaker'];
-  if (!validGames.includes(game)) {
-    console.log('[scores] GET /me — unknown game:', game);
-    return res.status(400).json({ error: `Unknown game: ${game}` });
-  }
-
-  console.log(`[scores] GET /me — querying: userId=${userId} game=${game}`);
-
-  try {
-    const result = await db.query(
-      `SELECT id, score, created_at
-       FROM game_scores
-       WHERE user_id = $1 AND game = $2
-       ORDER BY score DESC
-       LIMIT 20`,
-      [userId, game]
-    );
-    console.log(`[scores] GET /me — returned ${result.rows.length} rows`);
-    return res.json(result.rows);
-  } catch (err) {
-    console.error('[scores] GET /me — DB error:', err.message);
-    console.error('[scores] GET /me — full error:', err);
-    return res.status(500).json({ error: 'Could not fetch your scores.' });
-  }
-});
-
-module.exports = router;
