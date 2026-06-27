@@ -5,6 +5,7 @@ const port = process.env.PORT || 8800;
 const cors = require('cors')
 const db = require("./db");
 
+console.log("index.js");
 
 app.use(cors())
 // Middleware

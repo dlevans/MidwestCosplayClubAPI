@@ -1,5 +1,7 @@
 const { Pool } = require('pg');
 
+console.log("db.js");
+
 // Create a new connection pool using Render's single connection string
   const pool = new Pool({
   connectionString: process.env.DATABASE_URL,

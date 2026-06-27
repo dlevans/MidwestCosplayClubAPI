@@ -3,6 +3,8 @@ const router  = express.Router();
 const db = require('../db');
 const authenticate = require('../authMiddleware');
 
+console.log("scoresRoute.js");
+
 // ----------------------------------------------------------
 // Request logger — fires for every /api/scores/* hit
 // ----------------------------------------------------------
