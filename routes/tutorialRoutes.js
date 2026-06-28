@@ -42,8 +42,13 @@ router.get("/", async (req, res) => {
   const limit   = Math.min(500, Math.max(1, parseInt(req.query.limit, 10) || 25));
   const offset  = (page - 1) * limit;
   const search  = (req.query.search   || "").trim();
-  const category = (req.query.category || "").trim();
   const creator  = (req.query.creator  || "").trim();
+
+  // categories can arrive as ?category=Armor&category=Clothing  OR  ?category=Armor,Clothing
+  const rawCategories = Array.isArray(req.query.category)
+    ? req.query.category
+    : (req.query.category || "").split(",").filter(Boolean);
+  const categories = rawCategories.map((c) => c.trim()).filter(Boolean);
 
   // Build WHERE clauses dynamically
   const conditions = [];
@@ -54,9 +59,9 @@ router.get("/", async (req, res) => {
     conditions.push(`(t.tutorialtitle ILIKE $${params.length} OR t.tutorialdescription ILIKE $${params.length})`);
   }
 
-  if (category) {
-    params.push(category);
-    conditions.push(`t.tutorialcategory = $${params.length}`);
+  if (categories.length > 0) {
+    params.push(categories);
+    conditions.push(`t.tutorialcategory = ANY($${params.length})`);
   }
 
   if (creator) {
@@ -104,6 +109,34 @@ router.get("/", async (req, res) => {
     });
   } catch (err) {
     console.error("Error fetching tutorials:", err);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+/*
+ * GET /tutorials/categories
+ * Returns all distinct tutorial categories sorted alphabetically,
+ * with "Uncategorized" last. Used to populate the filter tiles
+ * independently of pagination so they never change when limit changes.
+ */
+router.get("/categories", async (req, res) => {
+  console.log("GET /tutorials/categories");
+  try {
+    const result = await pool.query(
+      `SELECT DISTINCT COALESCE(tutorialcategory, 'Uncategorized') AS category
+       FROM tutorials
+       ORDER BY category ASC`
+    );
+    const categories = result.rows
+      .map((r) => r.category)
+      .sort((a, b) => {
+        if (a === "Uncategorized") return 1;
+        if (b === "Uncategorized") return -1;
+        return a.localeCompare(b);
+      });
+    return res.status(200).json({ categories });
+  } catch (err) {
+    console.error("Error fetching tutorial categories:", err);
     return res.status(500).json({ message: "Internal server error" });
   }
 });

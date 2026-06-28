@@ -81,7 +81,12 @@ router.get("/", async (req, res) => {
     const parsedPage   = Math.max(1, parseInt(req.query.page,  10) || 1);
     const offset       = (parsedPage - 1) * parsedLimit;
     const search       = (req.query.search || "").trim();
-    const state        = (req.query.state  || "").trim().toUpperCase();
+
+    // states can arrive as ?state=KS&state=MO  OR  ?state=KS,MO
+    const rawStates = Array.isArray(req.query.state)
+        ? req.query.state
+        : (req.query.state || "").split(",").filter(Boolean);
+    const states = rawStates.map((s) => s.trim().toUpperCase()).filter(Boolean);
 
     // Build WHERE clauses dynamically
     const conditions = [];
@@ -92,14 +97,15 @@ router.get("/", async (req, res) => {
         conditions.push(`(eventname ILIKE $${params.length} OR eventcity ILIKE $${params.length})`);
     }
 
-    if (state) {
-        params.push(state);
-        conditions.push(`UPPER(eventstate) = $${params.length}`);
+    if (states.length > 0) {
+        params.push(states);
+        conditions.push(`UPPER(eventstate) = ANY($${params.length})`);
     }
 
     const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
-    // Pagination params come after filter params
+    // Snapshot filter params before adding pagination
+    const filterParams = [...params];
     params.push(parsedLimit);
     const limitIdx  = params.length;
     params.push(offset);
@@ -113,7 +119,7 @@ router.get("/", async (req, res) => {
             ),
             db.query(
                 `SELECT COUNT(*) AS total FROM events ${where}`,
-                params.slice(0, params.length - 2) // filter params only, no limit/offset
+                filterParams
             ),
         ]);
 
