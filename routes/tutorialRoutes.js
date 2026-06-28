@@ -32,14 +32,46 @@ const saveImage = (buffer, folder, publicId) =>
 
 /*
  * GET /tutorials
- * Paginated list, joined with the submitting user's avatar and username.
+ * Paginated list with server-side filtering.
+ * Supported query params: search, category, creator, page, limit
  */
 router.get("/", async (req, res) => {
   console.log("GET /tutorials");
 
-  const page   = Math.max(1, parseInt(req.query.page,  10) || 1);
-  const limit  = Math.min(500, Math.max(1, parseInt(req.query.limit, 10) || 10));
-  const offset = (page - 1) * limit;
+  const page    = Math.max(1, parseInt(req.query.page,  10) || 1);
+  const limit   = Math.min(500, Math.max(1, parseInt(req.query.limit, 10) || 25));
+  const offset  = (page - 1) * limit;
+  const search  = (req.query.search   || "").trim();
+  const category = (req.query.category || "").trim();
+  const creator  = (req.query.creator  || "").trim();
+
+  // Build WHERE clauses dynamically
+  const conditions = [];
+  const params     = [];
+
+  if (search) {
+    params.push(`%${search}%`);
+    conditions.push(`(t.tutorialtitle ILIKE $${params.length} OR t.tutorialdescription ILIKE $${params.length})`);
+  }
+
+  if (category) {
+    params.push(category);
+    conditions.push(`t.tutorialcategory = $${params.length}`);
+  }
+
+  if (creator) {
+    params.push(`%${creator}%`);
+    conditions.push(`u.username ILIKE $${params.length}`);
+  }
+
+  const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+
+  // Pagination params come after filter params
+  const filterParams = [...params];
+  params.push(limit);
+  const limitIdx  = params.length;
+  params.push(offset);
+  const offsetIdx = params.length;
 
   try {
     const [tutorialsResult, countResult] = await Promise.all([
@@ -51,11 +83,17 @@ router.get("/", async (req, res) => {
            u.username, u.image AS useravatar, u.username AS userslug
          FROM tutorials t
          JOIN users u ON u.id = t.userid
+         ${where}
          ORDER BY t.tutorialtitle ASC
-         LIMIT $1 OFFSET $2`,
-        [limit, offset]
+         LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
+        params
       ),
-      pool.query("SELECT COUNT(*) FROM tutorials"),
+      pool.query(
+        `SELECT COUNT(*) FROM tutorials t
+         JOIN users u ON u.id = t.userid
+         ${where}`,
+        filterParams
+      ),
     ]);
 
     return res.status(200).json({

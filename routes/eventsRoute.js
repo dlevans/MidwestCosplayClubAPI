@@ -71,26 +71,55 @@ async function generateUniqueSlug(eventname, excludeEventId = null) {
 
 
 /*
- * Get all events (With Pagination)
+ * Get all events (With Pagination + server-side filtering)
+ * Supported query params: search, state, page, limit
  */
 router.get("/", async (req, res) => {
     console.log("GET all /events");
-    const { limit = 10, page = 1 } = req.query;
 
-    const parsedLimit = parseInt(limit, 10);
-    const parsedPage = parseInt(page, 10);
-    const offset = (parsedPage - 1) * parsedLimit;
+    const parsedLimit  = Math.min(500, Math.max(1, parseInt(req.query.limit, 10) || 25));
+    const parsedPage   = Math.max(1, parseInt(req.query.page,  10) || 1);
+    const offset       = (parsedPage - 1) * parsedLimit;
+    const search       = (req.query.search || "").trim();
+    const state        = (req.query.state  || "").trim().toUpperCase();
+
+    // Build WHERE clauses dynamically
+    const conditions = [];
+    const params     = [];
+
+    if (search) {
+        params.push(`%${search}%`);
+        conditions.push(`(eventname ILIKE $${params.length} OR eventcity ILIKE $${params.length})`);
+    }
+
+    if (state) {
+        params.push(state);
+        conditions.push(`UPPER(eventstate) = $${params.length}`);
+    }
+
+    const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+
+    // Pagination params come after filter params
+    params.push(parsedLimit);
+    const limitIdx  = params.length;
+    params.push(offset);
+    const offsetIdx = params.length;
 
     try {
-        const eventsQuery = `SELECT * FROM events ORDER BY eventname ASC LIMIT $1 OFFSET $2`;
-        const eventsResult = await db.query(eventsQuery, [parsedLimit, offset]);
-
-        const countResult = await db.query("SELECT COUNT(*) AS total FROM events");
-        const totalEvents = parseInt(countResult.rows[0].total, 10);
+        const [eventsResult, countResult] = await Promise.all([
+            db.query(
+                `SELECT * FROM events ${where} ORDER BY eventname ASC LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
+                params
+            ),
+            db.query(
+                `SELECT COUNT(*) AS total FROM events ${where}`,
+                params.slice(0, params.length - 2) // filter params only, no limit/offset
+            ),
+        ]);
 
         return res.status(200).json({
             events: eventsResult.rows,
-            total: totalEvents,
+            total:  parseInt(countResult.rows[0].total, 10),
         });
     } catch (err) {
         console.error("Database query error:", err);

@@ -32,13 +32,51 @@ const saveImage = (buffer, folder, publicId) =>
 
 /*
  * GET /templates
+ * Paginated list with server-side filtering.
+ * Supported query params: search, category, creator, free, page, limit
  */
 router.get("/", async (req, res) => {
   console.log("GET /templates");
 
-  const page   = Math.max(1, parseInt(req.query.page,  10) || 1);
-  const limit  = Math.min(500, Math.max(1, parseInt(req.query.limit, 10) || 10));
-  const offset = (page - 1) * limit;
+  const page     = Math.max(1, parseInt(req.query.page,  10) || 1);
+  const limit    = Math.min(500, Math.max(1, parseInt(req.query.limit, 10) || 25));
+  const offset   = (page - 1) * limit;
+  const search   = (req.query.search   || "").trim();
+  const category = (req.query.category || "").trim();
+  const creator  = (req.query.creator  || "").trim();
+  const freeOnly = req.query.free === "true";
+
+  // Build WHERE clauses dynamically
+  const conditions = [];
+  const params     = [];
+
+  if (search) {
+    params.push(`%${search}%`);
+    conditions.push(`(t.templatetitle ILIKE $${params.length} OR t.templatedescription ILIKE $${params.length})`);
+  }
+
+  if (category) {
+    params.push(category);
+    conditions.push(`t.templatecategory = $${params.length}`);
+  }
+
+  if (creator) {
+    params.push(`%${creator}%`);
+    conditions.push(`u.username ILIKE $${params.length}`);
+  }
+
+  if (freeOnly) {
+    conditions.push(`t.templateisfree = TRUE`);
+  }
+
+  const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+
+  // Pagination params come after filter params
+  const filterParams = [...params];
+  params.push(limit);
+  const limitIdx  = params.length;
+  params.push(offset);
+  const offsetIdx = params.length;
 
   try {
     const [templatesResult, countResult] = await Promise.all([
@@ -51,11 +89,17 @@ router.get("/", async (req, res) => {
            u.username, u.image AS useravatar
          FROM templates t
          JOIN users u ON u.id = t.userid
+         ${where}
          ORDER BY t.templatetitle ASC
-         LIMIT $1 OFFSET $2`,
-        [limit, offset]
+         LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
+        params
       ),
-      pool.query("SELECT COUNT(*) FROM templates"),
+      pool.query(
+        `SELECT COUNT(*) FROM templates t
+         JOIN users u ON u.id = t.userid
+         ${where}`,
+        filterParams
+      ),
     ]);
 
     return res.status(200).json({
