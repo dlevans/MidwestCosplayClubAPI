@@ -31,10 +31,10 @@ router.post("/", (req, res) => {
             }
 
             // Validate username
-            const usernameRegex = /^[A-Za-z0-9]+$/;
+            const usernameRegex = /^[A-Za-z0-9._]+$/;
             if (!usernameRegex.test(username)) {
                 return res.status(400).json({
-                    message: "Username must only contain letters and numbers, without spaces or special characters."
+                    message: "Username must only contain letters, numbers, periods, and underscores."
                 });
             }
 
