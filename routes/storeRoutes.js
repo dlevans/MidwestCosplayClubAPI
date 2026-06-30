@@ -196,7 +196,8 @@ router.get("/:storeid", async (req, res) => {
          u.username, u.image AS useravatar
        FROM stores s
        JOIN users u ON u.id = s.userid
-       WHERE s.storeid = $1`,
+       WHERE s.storeid = $1
+       ORDER BY s.storename ASC`,
       [parseInt(storeid, 10)]
     );
 
