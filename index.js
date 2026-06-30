@@ -24,7 +24,7 @@ const templateRoutes = require("./routes/templateRoutes");
 const resetpasswordRoute = require("./routes/resetpasswordRoutes.js");
 const adminRoute = require("./routes/admin.js");
 const scoreRoute = require("./routes/scoresRoutes.js")
-
+const storeRoutes = require("./routes/storeRoutes");
 
 //Public routes
 const publicRoutes = require("./routes/publicRoutes");
@@ -44,6 +44,7 @@ app.use("/search", searchRoute);
 app.use("/createnew", createRoute);
 app.use("/tutorials", tutorialRoutes);
 app.use("/templates", templateRoutes);
+app.use("/stores", storeRoutes);
 app.use("/api/scores", scoreRoute);  // must be before /api so it isn't swallowed by adminRoute
 app.use("/api", adminRoute);
 
