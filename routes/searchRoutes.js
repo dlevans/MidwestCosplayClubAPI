@@ -119,11 +119,12 @@ function buildWhereClause(columns, tokens, startIdx = 1) {
  *   query   — search string (supports "exact", -negative, plain keywords)
  *
  * Returns:
- *   users, groups, tutorials, templates, events  — result arrays
+ *   users, groups, tutorials, templates, events, stores  — result arrays
  *   meta.userIama       — all distinct imawhat values across all users
  *   meta.tutorialCats   — all distinct tutorial categories
  *   meta.templateCats   — all distinct template categories
  *   meta.eventStates    — all distinct event state abbreviations
+ *   meta.storeTypes     — all distinct store types
  */
 router.get("/", async (req, res) => {
   try {
@@ -149,7 +150,10 @@ router.get("/", async (req, res) => {
         (SELECT array_agg(DISTINCT UPPER(eventstate) ORDER BY UPPER(eventstate))
            FROM events
           WHERE eventstate IS NOT NULL AND eventstate <> ''
-        ) AS event_states
+        ) AS event_states,
+        (SELECT array_agg(DISTINCT COALESCE(storetype, 'Other') ORDER BY COALESCE(storetype, 'Other'))
+           FROM stores
+        ) AS store_types
     `;
     const metaResult = await db.query(metaQuery);
     const metaRow    = metaResult.rows[0] || {};
@@ -159,12 +163,13 @@ router.get("/", async (req, res) => {
       tutorialCats: (metaRow.tutorial_cats || []),
       templateCats: (metaRow.template_cats || []),
       eventStates:  (metaRow.event_states  || []),
+      storeTypes:   (metaRow.store_types   || []),
     };
 
     // Empty query — return meta only, no results
     if (!raw) {
       return res.status(200).json({
-        users: [], groups: [], tutorials: [], templates: [], events: [],
+        users: [], groups: [], tutorials: [], templates: [], events: [], stores: [],
         meta,
       });
     }
@@ -174,7 +179,7 @@ router.get("/", async (req, res) => {
 
     if (!hasTerms) {
       return res.status(200).json({
-        users: [], groups: [], tutorials: [], templates: [], events: [],
+        users: [], groups: [], tutorials: [], templates: [], events: [], stores: [],
         meta,
       });
     }
@@ -185,12 +190,14 @@ router.get("/", async (req, res) => {
     const tutorialCols = ["t.tutorialtitle", "t.tutorialdescription", "t.tutorialcategory", "u.username"];
     const templateCols = ["t.templatetitle", "t.templatedescription", "t.templatecategory", "u.username"];
     const eventCols    = ["eventname", "eventcity", "eventstate"];
+    const storeCols    = ["s.storename", "s.storedescription", "s.storetype", "s.city", "s.state", "u.username"];
 
     const userWhere     = buildWhereClause(userCols,     tokens, 1);
     const groupWhere    = buildWhereClause(groupCols,    tokens, 1);
     const tutorialWhere = buildWhereClause(tutorialCols, tokens, 1);
     const templateWhere = buildWhereClause(templateCols, tokens, 1);
     const eventWhere    = buildWhereClause(eventCols,    tokens, 1);
+    const storeWhere    = buildWhereClause(storeCols,    tokens, 1);
 
     const usersQuery = `
       SELECT id, firstname, lastname, username, imawhat, etsy,
@@ -229,18 +236,30 @@ router.get("/", async (req, res) => {
       WHERE ${eventWhere.clause}
       ORDER BY eventname ASC`;
 
-    const [usersResult, groupsResult, tutorialsResult, templatesResult, eventsResult] = await Promise.all([
+    const storesQuery = `
+      SELECT
+        s.storeid, s.storename, s.storedescription, s.storetype,
+        s.address, s.city, s.state, s.zip,
+        s.phone, s.website, s.hours, s.storeimage, s.userid,
+        u.username, u.image AS useravatar
+      FROM stores s
+      JOIN users u ON u.id = s.userid
+      WHERE ${storeWhere.clause}
+      ORDER BY s.storename ASC`;
+
+    const [usersResult, groupsResult, tutorialsResult, templatesResult, eventsResult, storesResult] = await Promise.all([
       db.query(usersQuery,     userWhere.params),
       db.query(groupsQuery,    groupWhere.params),
       db.query(tutorialsQuery, tutorialWhere.params),
       db.query(templatesQuery, templateWhere.params),
       db.query(eventsQuery,    eventWhere.params),
+      db.query(storesQuery,    storeWhere.params),
     ]);
 
     console.log(
       `Search done. members=${usersResult.rows.length} groups=${groupsResult.rows.length} ` +
       `tutorials=${tutorialsResult.rows.length} templates=${templatesResult.rows.length} ` +
-      `events=${eventsResult.rows.length}`
+      `events=${eventsResult.rows.length} stores=${storesResult.rows.length}`
     );
 
     return res.status(200).json({
@@ -249,6 +268,7 @@ router.get("/", async (req, res) => {
       tutorials: tutorialsResult.rows,
       templates: templatesResult.rows,
       events:    eventsResult.rows,
+      stores:    storesResult.rows,
       meta,
     });
 
