@@ -119,10 +119,11 @@ function buildWhereClause(columns, tokens, startIdx = 1) {
  *   query   — search string (supports "exact", -negative, plain keywords)
  *
  * Returns:
- *   users, groups, tutorials, templates  — result arrays
+ *   users, groups, tutorials, templates, events  — result arrays
  *   meta.userIama       — all distinct imawhat values across all users
  *   meta.tutorialCats   — all distinct tutorial categories
  *   meta.templateCats   — all distinct template categories
+ *   meta.eventStates    — all distinct event state abbreviations
  */
 router.get("/", async (req, res) => {
   try {
@@ -144,7 +145,11 @@ router.get("/", async (req, res) => {
         (SELECT array_agg(DISTINCT templatecategory ORDER BY templatecategory)
            FROM templates
           WHERE templatecategory IS NOT NULL AND templatecategory <> ''
-        ) AS template_cats
+        ) AS template_cats,
+        (SELECT array_agg(DISTINCT UPPER(eventstate) ORDER BY UPPER(eventstate))
+           FROM events
+          WHERE eventstate IS NOT NULL AND eventstate <> ''
+        ) AS event_states
     `;
     const metaResult = await db.query(metaQuery);
     const metaRow    = metaResult.rows[0] || {};
@@ -153,12 +158,13 @@ router.get("/", async (req, res) => {
       userIama:     (metaRow.user_iama     || []).sort(),
       tutorialCats: (metaRow.tutorial_cats || []),
       templateCats: (metaRow.template_cats || []),
+      eventStates:  (metaRow.event_states  || []),
     };
 
     // Empty query — return meta only, no results
     if (!raw) {
       return res.status(200).json({
-        users: [], groups: [], tutorials: [], templates: [],
+        users: [], groups: [], tutorials: [], templates: [], events: [],
         meta,
       });
     }
@@ -168,7 +174,7 @@ router.get("/", async (req, res) => {
 
     if (!hasTerms) {
       return res.status(200).json({
-        users: [], groups: [], tutorials: [], templates: [],
+        users: [], groups: [], tutorials: [], templates: [], events: [],
         meta,
       });
     }
@@ -178,11 +184,13 @@ router.get("/", async (req, res) => {
     const groupCols    = ["groupname", "groupcity", "groupstate"];
     const tutorialCols = ["t.tutorialtitle", "t.tutorialdescription", "t.tutorialcategory", "u.username"];
     const templateCols = ["t.templatetitle", "t.templatedescription", "t.templatecategory", "u.username"];
+    const eventCols    = ["eventname", "eventcity", "eventstate"];
 
     const userWhere     = buildWhereClause(userCols,     tokens, 1);
     const groupWhere    = buildWhereClause(groupCols,    tokens, 1);
     const tutorialWhere = buildWhereClause(tutorialCols, tokens, 1);
     const templateWhere = buildWhereClause(templateCols, tokens, 1);
+    const eventWhere    = buildWhereClause(eventCols,    tokens, 1);
 
     const usersQuery = `
       SELECT id, firstname, lastname, username, imawhat, etsy,
@@ -215,16 +223,24 @@ router.get("/", async (req, res) => {
       WHERE ${templateWhere.clause}
       ORDER BY t.createdat DESC`;
 
-    const [usersResult, groupsResult, tutorialsResult, templatesResult] = await Promise.all([
+    const eventsQuery = `
+      SELECT eventid, eventname, eventslug, eventimage, eventcity, eventstate, eventwebsite, eventownerid
+      FROM events
+      WHERE ${eventWhere.clause}
+      ORDER BY eventname ASC`;
+
+    const [usersResult, groupsResult, tutorialsResult, templatesResult, eventsResult] = await Promise.all([
       db.query(usersQuery,     userWhere.params),
       db.query(groupsQuery,    groupWhere.params),
       db.query(tutorialsQuery, tutorialWhere.params),
       db.query(templatesQuery, templateWhere.params),
+      db.query(eventsQuery,    eventWhere.params),
     ]);
 
     console.log(
       `Search done. members=${usersResult.rows.length} groups=${groupsResult.rows.length} ` +
-      `tutorials=${tutorialsResult.rows.length} templates=${templatesResult.rows.length}`
+      `tutorials=${tutorialsResult.rows.length} templates=${templatesResult.rows.length} ` +
+      `events=${eventsResult.rows.length}`
     );
 
     return res.status(200).json({
@@ -232,6 +248,7 @@ router.get("/", async (req, res) => {
       groups:    groupsResult.rows,
       tutorials: tutorialsResult.rows,
       templates: templatesResult.rows,
+      events:    eventsResult.rows,
       meta,
     });
 
