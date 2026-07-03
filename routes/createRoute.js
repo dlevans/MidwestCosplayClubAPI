@@ -23,7 +23,7 @@ router.post("/", (req, res) => {
             const { firstname, lastname, birthdate, username, password } = req.body;
 
             // Validate password
-            const passwordRegex = /^(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+            const passwordRegex = /^(?=.*\d)(?=.*[!@#$%^&*()_+\-=])[A-Za-z\d!@#$%^&*()_+\-=]{8,}$/;
             if (!passwordRegex.test(password)) {
                 return res.status(400).json({
                     message: "Password must be at least 8 characters long, contain at least one number, and one special character."
