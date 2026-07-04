@@ -200,18 +200,18 @@ router.get("/", async (req, res) => {
     const storeWhere    = buildWhereClause(storeCols,    tokens, 1);
 
     const usersQuery = `
-      SELECT id, firstname, lastname, username, imawhat, etsy,
+      SELECT DISTINCT id, firstname, lastname, username, imawhat, etsy,
              complete, inprogress, cosplaygroup, image
       FROM users
       WHERE ${userWhere.clause}`;
 
     const groupsQuery = `
-      SELECT groupid, groupname, groupslug, groupimage, groupcity, groupstate, groupwebsite
+      SELECT DISTINCT groupid, groupname, groupslug, groupimage, groupcity, groupstate, groupwebsite
       FROM groups
       WHERE ${groupWhere.clause}`;
 
     const tutorialsQuery = `
-      SELECT t.tutorialid, t.tutorialtitle, t.tutorialurl,
+      SELECT DISTINCT t.tutorialid, t.tutorialtitle, t.tutorialurl,
              t.tutorialdescription, t.tutorialcategory,
              t.tutorialimage, t.userid,
              u.username, u.image AS useravatar
@@ -221,7 +221,7 @@ router.get("/", async (req, res) => {
       ORDER BY t.createdat DESC`;
 
     const templatesQuery = `
-      SELECT t.templateid, t.templatetitle, t.templateurl,
+      SELECT DISTINCT t.templateid, t.templatetitle, t.templateurl,
              t.templatedescription, t.templatecategory,
              t.templateisfree, t.templateimage, t.userid,
              u.username, u.image AS useravatar
@@ -237,7 +237,7 @@ router.get("/", async (req, res) => {
       ORDER BY eventname ASC`;
 
     const storesQuery = `
-      SELECT
+      SELECT DISTINCT
         s.storeid, s.storename, s.storedescription, s.storetype,
         s.address, s.city, s.state, s.zip,
         s.phone, s.website, s.hours, s.storeimage, s.userid,
