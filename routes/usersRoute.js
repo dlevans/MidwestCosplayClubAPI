@@ -17,6 +17,40 @@ cloudinary.config({
 
 const upload = multer({ storage: multer.memoryStorage() });
 
+// Characters allowed for each social/username field. Anything not matching
+// is stripped before saving (this also removes spaces and "@").
+// Keep this in sync with the ALLOWED_CHARS map in Update.js.
+const ALLOWED_CHARS = {
+  twitter: /[^A-Za-z0-9_]/g,
+  bluesky: /[^A-Za-z0-9._-]/g,      // e.g. "name.bsky.social"
+  instagram: /[^A-Za-z0-9._]/g,
+  facebook: /[^A-Za-z0-9.]/g,
+  discord: /[^A-Za-z0-9-]/g,        // invite code only, e.g. "7BH7Hthuz6"
+  snapchat: /[^A-Za-z0-9_.-]/g,
+  tiktok: /[^A-Za-z0-9_.]/g,
+  threads: /[^A-Za-z0-9._]/g,
+  reddit: /[^A-Za-z0-9_-]/g,
+  twitch: /[^A-Za-z0-9_]/g,
+  youtube: /[^A-Za-z0-9_.-]/g,
+  vimeo: /[^A-Za-z0-9_-]/g,
+  patreon: /[^A-Za-z0-9_-]/g,
+  kofi: /[^A-Za-z0-9_-]/g,
+  onlyfans: /[^A-Za-z0-9_.-]/g,
+  venmo: /[^A-Za-z0-9_-]/g,
+  cashapp: /[^A-Za-z0-9_-]/g,       // don't store the leading "$"
+  paypal: /[^A-Za-z0-9.-]/g,
+  etsy: /[^A-Za-z0-9]/g,
+};
+
+// Strip a leading "@" and any characters that field's platform doesn't
+// allow in a username (including spaces). This is the source of truth —
+// the frontend does the same thing for UX, but the API must not trust it.
+function sanitizeSocialField(name, value) {
+  const disallowed = ALLOWED_CHARS[name];
+  if (!disallowed || !value) return value || "";
+  return value.replace(/^@+/, "").replace(disallowed, "");
+}
+
 
 /*
  * Get all users (With Pagination)
@@ -115,26 +149,26 @@ router.put("/update/:id", upload.single("image"), async (req, res) => {
             phonenumber: req.body.phonenumber || "",
             about: req.body.about || "",
             calendar: req.body.calendar || "",
-            twitter: req.body.twitter || "",
-            bluesky: req.body.bluesky || "",
-            instagram: req.body.instagram || "",
-            facebook: req.body.facebook || "",
-            discord: req.body.discord || "",
-            snapchat: req.body.snapchat || "",
-            tiktok: req.body.tiktok || "",
-            threads: req.body.threads || "",
-            reddit: req.body.reddit || "",
-            twitch: req.body.twitch || "",
-            youtube: req.body.youtube || "",
-            vimeo: req.body.vimeo || "",
-            patreon: req.body.patreon || "",
-            kofi: req.body.kofi || "",
-            venmo: req.body.venmo || "",
-            cashapp: req.body.cashapp || "",
-            paypal: req.body.paypal || "",
+            twitter: sanitizeSocialField("twitter", req.body.twitter),
+            bluesky: sanitizeSocialField("bluesky", req.body.bluesky),
+            instagram: sanitizeSocialField("instagram", req.body.instagram),
+            facebook: sanitizeSocialField("facebook", req.body.facebook),
+            discord: sanitizeSocialField("discord", req.body.discord),
+            snapchat: sanitizeSocialField("snapchat", req.body.snapchat),
+            tiktok: sanitizeSocialField("tiktok", req.body.tiktok),
+            threads: sanitizeSocialField("threads", req.body.threads),
+            reddit: sanitizeSocialField("reddit", req.body.reddit),
+            twitch: sanitizeSocialField("twitch", req.body.twitch),
+            youtube: sanitizeSocialField("youtube", req.body.youtube),
+            vimeo: sanitizeSocialField("vimeo", req.body.vimeo),
+            patreon: sanitizeSocialField("patreon", req.body.patreon),
+            kofi: sanitizeSocialField("kofi", req.body.kofi),
+            venmo: sanitizeSocialField("venmo", req.body.venmo),
+            cashapp: sanitizeSocialField("cashapp", req.body.cashapp),
+            paypal: sanitizeSocialField("paypal", req.body.paypal),
             gofundme: req.body.gofundme || "",
             extralife: req.body.extralife || "",
-            etsy: req.body.etsy || "",
+            etsy: sanitizeSocialField("etsy", req.body.etsy),
             complete: req.body.complete || "",
             inprogress: req.body.inprogress || "",
             cosplaygroup: req.body.cosplaygroup || "",
@@ -145,7 +179,7 @@ router.put("/update/:id", upload.single("image"), async (req, res) => {
             website1: req.body.website1 || "",
             website2: req.body.website2 || "",
             website3: req.body.website3 || "",
-            onlyfans: req.body.onlyfans || "",
+            onlyfans: sanitizeSocialField("onlyfans", req.body.onlyfans),
         };
 
         if (req.body.password && req.body.password.trim() !== "") {
