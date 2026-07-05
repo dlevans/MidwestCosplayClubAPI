@@ -186,6 +186,30 @@ router.get("/:username", async (req, res) => {
             console.error("Error fetching user's guestbook:", guestbookErr);
         }
 
+        // Fetch this user's arcade achievements — any game where they currently
+        // hold a top-10 spot on the leaderboard. Ranked by best score per user
+        // per game, same "scores" table the /api/scores/top endpoint reads from.
+        // Wrapped separately so a problem here can't take down the rest of the
+        // profile — same pattern as groups/events/guestbook above.
+        user.achievements = [];
+        try {
+            const achievementsResult = await db.query(
+                `SELECT game, score, rank
+                 FROM (
+                     SELECT game, userid, MAX(score) AS score,
+                            RANK() OVER (PARTITION BY game ORDER BY MAX(score) DESC) AS rank
+                     FROM scores
+                     GROUP BY game, userid
+                 ) ranked
+                 WHERE userid = $1 AND rank <= 10
+                 ORDER BY rank ASC`,
+                [user.id]
+            );
+            user.achievements = achievementsResult.rows;
+        } catch (achievementsErr) {
+            console.error("Error fetching user's game achievements:", achievementsErr);
+        }
+
         // Serve OG-injected HTML to social crawlers; JSON to everyone else
         const userAgent = req.headers["user-agent"] || "";
         if (CRAWLER_AGENTS.test(userAgent)) {
