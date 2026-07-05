@@ -198,7 +198,7 @@ router.get("/:username", async (req, res) => {
                  FROM (
                      SELECT game, userid, MAX(score) AS score,
                             RANK() OVER (PARTITION BY game ORDER BY MAX(score) DESC) AS rank
-                     FROM scores
+                     FROM game_scores
                      GROUP BY game, userid
                  ) ranked
                  WHERE userid = $1 AND rank <= 10
