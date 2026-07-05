@@ -188,7 +188,8 @@ router.get("/:username", async (req, res) => {
 
         // Fetch this user's arcade achievements — any game where they currently
         // hold a top-10 spot on the leaderboard. Ranked by best score per user
-        // per game, same "scores" table the /api/scores/top endpoint reads from.
+        // per game (a user can have many rows per game, so MAX(score) dedupes
+        // before ranking) against public.game_scores.
         // Wrapped separately so a problem here can't take down the rest of the
         // profile — same pattern as groups/events/guestbook above.
         user.achievements = [];
@@ -196,12 +197,12 @@ router.get("/:username", async (req, res) => {
             const achievementsResult = await db.query(
                 `SELECT game, score, rank
                  FROM (
-                     SELECT game, userid, MAX(score) AS score,
+                     SELECT game, user_id, MAX(score) AS score,
                             RANK() OVER (PARTITION BY game ORDER BY MAX(score) DESC) AS rank
                      FROM game_scores
-                     GROUP BY game, userid
+                     GROUP BY game, user_id
                  ) ranked
-                 WHERE userid = $1 AND rank <= 10
+                 WHERE user_id = $1 AND rank <= 10
                  ORDER BY rank ASC`,
                 [user.id]
             );
