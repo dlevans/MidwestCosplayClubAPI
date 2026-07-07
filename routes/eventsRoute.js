@@ -15,6 +15,36 @@ cloudinary.config({
 
 
 const upload = multer({ storage: multer.memoryStorage() });
+const uploadEventFiles = upload.fields([
+    { name: "eventimage", maxCount: 1 },
+    { name: "eventcosplanimage", maxCount: 1 },
+]);
+
+/*
+ * Upload a single file buffer (from multer) to Cloudinary and return its
+ * secure URL. Used for both the event photo and the optional cosplan
+ * template background.
+ */
+function uploadToCloudinary(file, folder = 'midwest-cosplay/events') {
+    return new Promise((resolve, reject) => {
+        cloudinary.uploader.upload_stream(
+            { folder },
+            (error, result) => {
+                if (error) reject(error);
+                else resolve(result.secure_url);
+            }
+        ).end(file.buffer);
+    });
+}
+
+/*
+ * FormData sends unset date/time/text inputs as empty strings, which
+ * Postgres date/time columns reject. Convert "" to null so those columns
+ * can be cleared or left unset without erroring.
+ */
+function nullIfEmpty(value) {
+    return value === undefined || value === null || value === "" ? null : value;
+}
 
 
 /*
@@ -177,10 +207,14 @@ async function isEventAdminOrOwner(eventId, userId) {
 /*
  * Create a new event (Member adding a event they're part of)
  */
-router.post("/", upload.single("eventimage"), async (req, res) => {
+router.post("/", uploadEventFiles, async (req, res) => {
     console.log("POST /events - new event for user:", req.user.id);
 
-    const { eventname, eventcity, eventstate, eventwebsite } = req.body;
+    const {
+        eventname, eventcity, eventstate, eventwebsite,
+        eventstartdate, eventenddate, eventstarttime, eventendtime,
+        eventvenue, eventaddress, eventzip, eventdescription,
+    } = req.body;
 
     if (!eventname || !eventcity || !eventstate || !eventwebsite) {
         return res.status(400).json({ message: "eventname, eventcity, eventstate, and eventwebsite are required." });
@@ -188,27 +222,35 @@ router.post("/", upload.single("eventimage"), async (req, res) => {
 
     try {
         let imageUrl = "";
-        if (req.file) {
-            const result = await new Promise((resolve, reject) => {
-                cloudinary.uploader.upload_stream(
-                    { folder: 'midwest-cosplay/events' },
-                    (error, result) => {
-                        if (error) reject(error);
-                        else resolve(result);
-                    }
-                ).end(req.file.buffer);
-            });
-            imageUrl = result.secure_url;
+        if (req.files?.eventimage?.[0]) {
+            imageUrl = await uploadToCloudinary(req.files.eventimage[0]);
+        }
+
+        let cosplanImageUrl = "";
+        if (req.files?.eventcosplanimage?.[0]) {
+            cosplanImageUrl = await uploadToCloudinary(req.files.eventcosplanimage[0], 'midwest-cosplay/events/cosplans');
         }
 
         const eventslug = await generateUniqueSlug(eventname);
 
         const insertQuery = `
-            INSERT INTO events (userid, eventownerid, eventname, eventslug, eventimage, eventcity, eventstate, eventwebsite)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            INSERT INTO events (
+                userid, eventownerid, eventname, eventslug, eventimage,
+                eventcity, eventstate, eventwebsite,
+                eventstartdate, eventenddate, eventstarttime, eventendtime,
+                eventvenue, eventaddress, eventzip, eventdescription, eventcosplanimage
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
             RETURNING *
         `;
-        const values = [req.user.id, req.user.id, eventname, eventslug, imageUrl, eventcity, eventstate, eventwebsite];
+        const values = [
+            req.user.id, req.user.id, eventname, eventslug, imageUrl,
+            eventcity, eventstate, eventwebsite,
+            nullIfEmpty(eventstartdate), nullIfEmpty(eventenddate),
+            nullIfEmpty(eventstarttime), nullIfEmpty(eventendtime),
+            nullIfEmpty(eventvenue), nullIfEmpty(eventaddress), nullIfEmpty(eventzip),
+            nullIfEmpty(eventdescription), cosplanImageUrl || null,
+        ];
         const result = await db.query(insertQuery, values);
 
         return res.status(201).json({ message: "Event created successfully", event: result.rows[0] });
@@ -222,7 +264,7 @@ router.post("/", upload.single("eventimage"), async (req, res) => {
 /*
  * Update an existing event (Owner only)
  */
-router.put("/:eventid", upload.single("eventimage"), async (req, res) => {
+router.put("/:eventid", uploadEventFiles, async (req, res) => {
     console.log("PUT /events/:eventid");
     const eventID = req.params.eventid;
 
@@ -231,7 +273,10 @@ router.put("/:eventid", upload.single("eventimage"), async (req, res) => {
     }
 
     try {
-        const existingEventCheck = await db.query("SELECT eventownerid, eventimage, eventname, eventslug FROM events WHERE eventid = $1", [eventID]);
+        const existingEventCheck = await db.query(
+            "SELECT eventownerid, eventimage, eventcosplanimage, eventname, eventslug FROM events WHERE eventid = $1",
+            [eventID]
+        );
         if (existingEventCheck.rows.length === 0) return res.status(404).json({ message: "Event not found." });
 
         if (existingEventCheck.rows[0].eventownerid !== req.user.id) {
@@ -239,17 +284,13 @@ router.put("/:eventid", upload.single("eventimage"), async (req, res) => {
         }
 
         let imageUrl = existingEventCheck.rows[0].eventimage; // Keep old image by default
-        if (req.file) {
-            const result = await new Promise((resolve, reject) => {
-                cloudinary.uploader.upload_stream(
-                    { folder: 'midwest-cosplay/events' },
-                    (error, result) => {
-                        if (error) reject(error);
-                        else resolve(result);
-                    }
-                ).end(req.file.buffer);
-            });
-            imageUrl = result.secure_url;
+        if (req.files?.eventimage?.[0]) {
+            imageUrl = await uploadToCloudinary(req.files.eventimage[0]);
+        }
+
+        let cosplanImageUrl = existingEventCheck.rows[0].eventcosplanimage; // Keep old background by default
+        if (req.files?.eventcosplanimage?.[0]) {
+            cosplanImageUrl = await uploadToCloudinary(req.files.eventcosplanimage[0], 'midwest-cosplay/events/cosplans');
         }
 
         const newEventName = req.body.eventname || "";
@@ -268,6 +309,15 @@ router.put("/:eventid", upload.single("eventimage"), async (req, res) => {
             eventstate: req.body.eventstate || "",
             eventwebsite: req.body.eventwebsite || "",
             eventimage: imageUrl || "",
+            eventstartdate: nullIfEmpty(req.body.eventstartdate),
+            eventenddate: nullIfEmpty(req.body.eventenddate),
+            eventstarttime: nullIfEmpty(req.body.eventstarttime),
+            eventendtime: nullIfEmpty(req.body.eventendtime),
+            eventvenue: nullIfEmpty(req.body.eventvenue),
+            eventaddress: nullIfEmpty(req.body.eventaddress),
+            eventzip: nullIfEmpty(req.body.eventzip),
+            eventdescription: nullIfEmpty(req.body.eventdescription),
+            eventcosplanimage: cosplanImageUrl || null,
         };
 
         const keys = Object.keys(updateFields);

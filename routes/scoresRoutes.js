@@ -5,7 +5,7 @@ const authenticate = require('../authMiddleware');
 
 console.log("scoresRoute.js");
 const validGames = ['snake', 'brickbreaker', 'memory', 'hacking', 'sigilstrike'];
-console.log(validGames);
+console.log(validGames);  
 
 // ----------------------------------------------------------
 // Request logger — fires for every /api/scores/* hit
