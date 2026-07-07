@@ -74,9 +74,12 @@ router.get("/event/:eventid", async (req, res) => {
 
     try {
         const isNumericId = /^\d+$/.test(identifier);
+        const eventColumns = `eventid, eventname, eventimage, eventcity, eventstate, eventwebsite, eventslug, eventownerid,
+                               eventstartdate, eventenddate, eventstarttime, eventendtime,
+                               eventvenue, eventaddress, eventzip, eventdescription, eventcosplanimage`;
         const eventQuery = isNumericId
-            ? "SELECT eventid, eventname, eventimage, eventcity, eventstate, eventwebsite, eventslug, eventownerid FROM events WHERE eventid = $1"
-            : "SELECT eventid, eventname, eventimage, eventcity, eventstate, eventwebsite, eventslug, eventownerid FROM events WHERE LOWER(eventslug) = LOWER($1)";
+            ? `SELECT ${eventColumns} FROM events WHERE eventid = $1`
+            : `SELECT ${eventColumns} FROM events WHERE LOWER(eventslug) = LOWER($1)`;
         const eventResult = await db.query(eventQuery, [isNumericId ? parseInt(identifier, 10) : identifier]);
 
         if (eventResult.rows.length === 0) {
