@@ -34,6 +34,9 @@ const guestbookRoutes = require("./routes/guestbookRoutes");
 const tshirtRoutes = require("./routes/tshirtRoutes");
 const copyrightRoutes = require("./routes/copyrightRoutes");
 
+//Scav route
+const huntRoute = require("/huntRoute");
+
 // Use routes
 app.use("/login", authRoutes);
 app.use("/resetpassword", resetpasswordRoute);
@@ -47,6 +50,7 @@ app.use("/templates", templateRoutes);
 app.use("/stores", storeRoutes);
 app.use("/api/scores", scoreRoute);  // must be before /api so it isn't swallowed by adminRoute
 app.use("/api", adminRoute);
+app.use("/hunt", huntRoute);
 
 
 
