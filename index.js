@@ -35,7 +35,7 @@ const tshirtRoutes = require("./routes/tshirtRoutes");
 const copyrightRoutes = require("./routes/copyrightRoutes");
 
 //Scav route
-const huntRoute = require("/huntRoute");
+const huntRoute = require("./huntRoute");
 
 // Use routes
 app.use("/login", authRoutes);
