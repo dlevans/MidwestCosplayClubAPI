@@ -147,32 +147,35 @@ router.post("/:itemid/complete", (req, res) => {
       );
       const existing = existingResult.rows[0] || null;
 
-      // Image: use a freshly uploaded file, else fall back to whatever was
-      // already saved. Error only if the task requires one and neither exists.
+      // Save whatever was submitted this call, falling back to whatever was
+      // already saved for the other field(s). A task like "mystery-item"
+      // needs both a photo AND an answer, but those can arrive in separate
+      // requests — save each as it comes in rather than rejecting one for
+      // being submitted without the other.
       let imageUrl = existing?.imageurl || null;
       if (req.file) {
         imageUrl = await uploadToCloudinary(req.file.buffer, `${req.user.id}-${itemId}`);
-      } else if (item.requiresimage && !imageUrl) {
-        return res.status(400).json({ message: "This task requires a photo." });
       }
 
-      // Text: use newly submitted text, else fall back to whatever was
-      // already saved. Error only if the task requires text and neither exists.
-      let textResponse = submittedText || existing?.textresponse || null;
-      if (item.requirestext && !textResponse) {
-        return res.status(400).json({ message: "This task requires a written answer." });
-      }
+      const textResponse = submittedText || existing?.textresponse || null;
+
+      // Only mark the task fully complete once every requirement it has is
+      // satisfied. A partial save (e.g. photo only, on a task that also
+      // needs text) is stored but left uncompleted until the rest comes in.
+      const isComplete =
+        (!item.requiresimage || !!imageUrl) &&
+        (!item.requirestext || !!textResponse);
 
       const result = await db.query(
         `INSERT INTO huntprogress (userid, itemid, completed, imageurl, textresponse, completedat)
-         VALUES ($1, $2, true, $3, $4, NOW())
+         VALUES ($1, $2, $3, $4, $5, CASE WHEN $3 THEN NOW() ELSE NULL END)
          ON CONFLICT (userid, itemid)
-         DO UPDATE SET completed = true,
-                       imageurl = $3,
-                       textresponse = $4,
-                       completedat = NOW()
+         DO UPDATE SET completed = $3,
+                       imageurl = $4,
+                       textresponse = $5,
+                       completedat = CASE WHEN $3 THEN NOW() ELSE huntprogress.completedat END
          RETURNING itemid, completed, imageurl, textresponse, completedat`,
-        [req.user.id, itemId, imageUrl, textResponse]
+        [req.user.id, itemId, isComplete, imageUrl, textResponse]
       );
 
       return res.status(200).json({ message: "Task updated", progress: result.rows[0] });
