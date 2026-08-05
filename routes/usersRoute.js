@@ -201,4 +201,48 @@ router.put("/update/:id", upload.single("image"), async (req, res) => {
 });
 
 
+/*
+ * Delete a user (admin only). Cascades to the user's tutorials, stores,
+ * templates, groups/groupmembers, guestbook entries, hunt progress, and
+ * events/eventmembers via each table's ON DELETE CASCADE foreign key.
+ * game_scores has no FK constraint on users, so it's cleared explicitly
+ * before the user row is removed.
+ */
+router.delete("/:id", async (req, res) => {
+    console.log("DELETE /users/:id");
+    const userID = req.params.id;
+
+    if (!userID || isNaN(parseInt(userID))) {
+        return res.status(400).json({ message: "Invalid User ID." });
+    }
+
+    if (!req.user.is_admin) {
+        return res.status(403).json({ message: "Not authorized." });
+    }
+
+    if (parseInt(userID) === parseInt(req.user.id)) {
+        return res.status(400).json({ message: "You can't delete your own account from here." });
+    }
+
+    try {
+        const existingUserCheck = await db.query("SELECT id FROM users WHERE id = $1", [userID]);
+        if (existingUserCheck.rows.length === 0) {
+            return res.status(404).json({ message: "User not found." });
+        }
+
+        // Not covered by a foreign key, so it won't cascade automatically.
+        await db.query("DELETE FROM game_scores WHERE user_id = $1", [userID]);
+
+        // Cascades to groupmembers, groups, guestbook, huntprogress, stores,
+        // templates, tutorials, eventmembers, and events.
+        await db.query("DELETE FROM users WHERE id = $1", [userID]);
+
+        return res.status(200).json({ message: "User deleted successfully" });
+    } catch (err) {
+        console.error("Delete user error:", err);
+        return res.status(500).json({ message: "Error deleting user", error: err.message });
+    }
+});
+
+
 module.exports = router;

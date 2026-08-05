@@ -31,8 +31,8 @@ const upload = multer({ storage: multer.memoryStorage() }).single("image");
 const HUNT_ITEMS = [
   {
     id: "storefront-photo",
-    title: "Find the Planet Anime storefront",
-    description: "Snap a photo of yourself (or your cosplay!) outside the Planet Anime entrance.",
+    title: "Find the Planet Anime mascot",
+    description: "Snap a photo of yourself with the Planet Anime mascot.",
     requiresimage: true,
     requirestext: false,
   },
