@@ -241,7 +241,7 @@ router.delete("/:id", async (req, res) => {
     } catch (err) {
         console.error("Delete user error:", err);
         return res.status(500).json({ message: "Error deleting user", error: err.message });
-    }
+    }  
 });
 
 
