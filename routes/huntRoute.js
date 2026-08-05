@@ -35,6 +35,7 @@ const HUNT_ITEMS = [
     description: "Snap a photo of yourself with the Planet Anime mascot.",
     requiresimage: true,
     requirestext: false,
+    points: 10,
   },
   {
     id: "figure-shelf",
@@ -42,6 +43,7 @@ const HUNT_ITEMS = [
     description: "Find the collectible figure display wall and check in here.",
     requiresimage: false,
     requirestext: false,
+    points: 5,
   },
   {
     id: "manga-volume-1",
@@ -49,6 +51,7 @@ const HUNT_ITEMS = [
     description: "Find any manga series' Volume 1 on the shelves and photograph the cover.",
     requiresimage: true,
     requirestext: false,
+    points: 10,
   },
   {
     id: "staff-recommendation",
@@ -57,6 +60,7 @@ const HUNT_ITEMS = [
     requiresimage: false,
     requirestext: true,
     textprompt: "What did they recommend?",
+    points: 15,
   },
   {
     id: "mystery-item",
@@ -65,8 +69,12 @@ const HUNT_ITEMS = [
     requiresimage: true,
     requirestext: true,
     textprompt: "What was the mystery item?",
+    points: 20,
   },
 ];
+// Points are hand-picked per task (harder/rarer tasks worth more). Adjust
+// freely — the leaderboard below always re-sums from whatever's set here,
+// nothing is cached or stored per-point in the DB.
 // TODO: replace these placeholder tasks with your real Planet Anime hunt list.
 
 /*
@@ -118,6 +126,46 @@ router.get("/", async (req, res) => {
   } catch (err) {
     console.error("Error fetching hunt progress:", err);
     return res.status(500).json({ message: "Error fetching hunt progress", error: err.message });
+  }
+});
+
+/*
+ * Top 10 scavenger hunt players by total points. Points live on the
+ * HUNT_ITEMS list above (not in the DB), so this pulls every completed
+ * (userid, itemid) pair, looks up each item's point value in JS, and sums
+ * per user. Kept out of the `game_scores` table on purpose since hunt
+ * "scores" are derived from progress rather than being their own scored
+ * events.
+ */
+router.get("/leaderboard", async (req, res) => {
+  try {
+    const result = await db.query(
+      `SELECT hp.userid, u.username, hp.itemid
+       FROM huntprogress hp
+       JOIN users u ON u.id = hp.userid
+       WHERE hp.completed = true`
+    );
+
+    const pointsByItem = Object.fromEntries(HUNT_ITEMS.map((i) => [i.id, i.points || 0]));
+
+    const totals = new Map();
+    for (const row of result.rows) {
+      const pts = pointsByItem[row.itemid] || 0;
+      if (!totals.has(row.userid)) {
+        totals.set(row.userid, { userid: row.userid, username: row.username, score: 0 });
+      }
+      totals.get(row.userid).score += pts;
+    }
+
+    const leaderboard = Array.from(totals.values())
+      .filter((entry) => entry.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 10);
+
+    return res.status(200).json(leaderboard);
+  } catch (err) {
+    console.error("Error fetching hunt leaderboard:", err);
+    return res.status(500).json({ message: "Error fetching hunt leaderboard", error: err.message });
   }
 });
 
