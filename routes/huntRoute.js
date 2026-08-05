@@ -489,7 +489,15 @@ const HUNT_ITEMS = [
     description: "Use chopsticks to eat something at the con, even if it's not traditionally eaten with them. Photograph the attempt.",
     requiresimage: true,
     requirestext: false,
-    points: 2,
+    points: 4,
+  },
+  {
+    id: "public-transport",
+    title: "From point A to B",
+    description: "Take a photo of yourself or someone else in full cosplay on public transport.",
+    requiresimage: true,
+    requirestext: false,
+    points: 3,
   },
 
   // --- Social / interaction ---------------------------------------------
