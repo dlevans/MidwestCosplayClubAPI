@@ -256,6 +256,6 @@ router.delete("/:itemid/complete", async (req, res) => {
     console.error("Error clearing hunt progress:", err);
     return res.status(500).json({ message: "Error clearing hunt progress", error: err.message });
   }
-});
+}); 
 
 module.exports = router;
