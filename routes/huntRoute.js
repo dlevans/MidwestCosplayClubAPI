@@ -163,14 +163,6 @@ const HUNT_ITEMS = [
     points: 2,
   },
   {
-    id: "blank-check",
-    title: "Sign the blank check",
-    description: "Find a commission sign-up sheet at an artist's table and photograph it.",
-    requiresimage: true,
-    requirestext: false,
-    points: 1,
-  },
-  {
     id: "plush-life",
     title: "Plush life",
     description: "Find the largest plushie for sale in the vendor hall. Photograph it.",
@@ -249,15 +241,6 @@ const HUNT_ITEMS = [
     points: 2,
   },
   {
-    id: "human-au",
-    title: "Human AU",
-    description: "Find a \"gijinka\" — a human version of a non-human character (Pok\u00e9mon, mascot, object, etc). Photograph them.",
-    requiresimage: true,
-    requirestext: true,
-    textprompt: "What's the character based on?",
-    points: 4,
-  },
-  {
     id: "pit-crew",
     title: "Pit crew",
     description: "Find someone helping repair or adjust another cosplayer's costume. Photograph the moment.",
@@ -272,14 +255,6 @@ const HUNT_ITEMS = [
     requiresimage: true,
     requirestext: false,
     points: 4,
-  },
-  {
-    id: "tiny-terror",
-    title: "Tiny terror",
-    description: "Find a chibi-style or mini-scale cosplay or prop. Photograph it.",
-    requiresimage: true,
-    requirestext: false,
-    points: 1,
   },
   {
     id: "crowned-champion",
@@ -308,14 +283,6 @@ const HUNT_ITEMS = [
     requirestext: true,
     textprompt: "What's the theory?",
     points: 2,
-  },
-  {
-    id: "guest-of-honor",
-    title: "Guest of honor",
-    description: "Get a photo with (or near) a convention guest at their table or panel.",
-    requiresimage: true,
-    requirestext: false,
-    points: 5,
   },
   {
     id: "raise-your-hand",
@@ -432,14 +399,6 @@ const HUNT_ITEMS = [
     points: 4,
   },
   {
-    id: "human-pyramid",
-    title: "Human pyramid",
-    description: "Safely form a 3-person human pyramid with other hunt participants or friends. Photograph it.",
-    requiresimage: true,
-    requirestext: false,
-    points: 5,
-  },
-  {
     id: "statue-challenge",
     title: "Statue challenge",
     description: "Freeze in an action pose for 30 seconds in a public area of the con. Get someone to time and photograph you.",
@@ -509,14 +468,6 @@ const HUNT_ITEMS = [
     points: 3,
   },
   {
-    id: "bento-box",
-    title: "Bento box",
-    description: "Find someone with a bento box or themed lunch container. Photograph it.",
-    requiresimage: true,
-    requirestext: false,
-    points: 2,
-  },
-  {
     id: "caffeine-run",
     title: "Caffeine run",
     description: "Find the nearest coffee or drink stand to the main hall. Photograph the menu.",
@@ -571,7 +522,7 @@ const HUNT_ITEMS = [
   {
     id: "veteran-status",
     title: "Veteran status",
-    description: "Find someone who's been coming to this convention for 5+ years. Ask what's changed the most.",
+    description: "Find someone who's been coming to this convention for 2+ years. Ask what's changed the most.",
     requiresimage: false,
     requirestext: true,
     textprompt: "What did they say?",
@@ -620,15 +571,6 @@ const HUNT_ITEMS = [
     requirestext: true,
     textprompt: "What phrase, and what does it mean?",
     points: 4,
-  },
-  {
-    id: "karaoke-encore",
-    title: "Karaoke encore",
-    description: "Watch someone perform at karaoke and photograph the moment.",
-    requiresimage: true,
-    requirestext: true,
-    textprompt: "What song did they sing?",
-    points: 2,
   },
 
   // --- Venue exploration -------------------------------------------------
@@ -701,9 +643,6 @@ const HUNT_ITEMS = [
     points: 3,
   },
 ];
-// Points follow a 1-5 scale (Taskmaster-style): 1 = quick and easy,
-// 5 = takes real effort, luck, or a willing stranger. Add new tasks with a
-// new id — never reuse or rename an id once players may have completed it.
 
 /*
  * Upload a single file buffer (from multer) to Cloudinary and return its
