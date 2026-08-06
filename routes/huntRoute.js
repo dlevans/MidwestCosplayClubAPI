@@ -3,6 +3,7 @@ const cloudinary = require('cloudinary').v2;
 const multer = require("multer");
 const db = require("../db");
 const authenticateJWT = require("../authMiddleware");
+const requireAdmin = require("../requireAdmin");
 
 const router = express.Router();
 router.use(authenticateJWT);
@@ -741,6 +742,77 @@ router.get("/leaderboard", async (req, res) => {
   } catch (err) {
     console.error("Error fetching hunt leaderboard:", err);
     return res.status(500).json({ message: "Error fetching hunt leaderboard", error: err.message });
+  }
+});
+
+/*
+ * Admin-only: every user's scavenger hunt answers (photos, text responses,
+ * completion state), grouped by user. Item metadata (title, points, whether
+ * a photo/text was required, the text prompt shown) comes from HUNT_ITEMS
+ * since that list — not the DB — is the source of truth for it.
+ *
+ * Only rows a user has actually touched are returned (i.e. huntprogress has
+ * a row for them); untouched items are simply absent rather than padded in
+ * as "not completed", since this is a review view, not the player's task
+ * list.
+ */
+router.get("/admin/all", requireAdmin, async (req, res) => {
+  try {
+    const result = await db.query(
+      `SELECT hp.userid, u.username, u.firstname, u.lastname,
+              hp.itemid, hp.completed, hp.imageurl, hp.textresponse, hp.completedat
+       FROM huntprogress hp
+       JOIN users u ON u.id = hp.userid
+       ORDER BY u.username, hp.itemid`
+    );
+
+    const itemMeta = Object.fromEntries(
+      HUNT_ITEMS.map((i) => [
+        i.id,
+        {
+          title: i.title,
+          points: i.points || 0,
+          requiresimage: !!i.requiresimage,
+          requirestext: !!i.requirestext,
+          textprompt: i.textprompt || null,
+        },
+      ])
+    );
+
+    const usersById = new Map();
+    for (const row of result.rows) {
+      if (!usersById.has(row.userid)) {
+        usersById.set(row.userid, {
+          userid: row.userid,
+          username: row.username,
+          firstname: row.firstname,
+          lastname: row.lastname,
+          entries: [],
+        });
+      }
+      const meta = itemMeta[row.itemid] || {};
+      usersById.get(row.userid).entries.push({
+        itemid: row.itemid,
+        title: meta.title || row.itemid,
+        points: meta.points || 0,
+        requiresimage: !!meta.requiresimage,
+        requirestext: !!meta.requirestext,
+        textprompt: meta.textprompt,
+        completed: row.completed,
+        imageurl: row.imageurl,
+        textresponse: row.textresponse,
+        completedat: row.completedat,
+      });
+    }
+
+    const users = Array.from(usersById.values()).sort((a, b) =>
+      a.username.localeCompare(b.username)
+    );
+
+    return res.status(200).json({ users });
+  } catch (err) {
+    console.error("Error fetching hunt admin data:", err);
+    return res.status(500).json({ message: "Error fetching hunt admin data", error: err.message });
   }
 });
 
