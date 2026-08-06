@@ -811,7 +811,7 @@ router.get("/admin/all", requireAdmin, async (req, res) => {
       a.username.localeCompare(b.username)
     );
 
-    return res.status(200).json({ users });
+    return res.status(200).json({ users, totalCount: HUNT_ITEMS.length });
   } catch (err) {
     console.error("Error fetching hunt admin data:", err);
     return res.status(500).json({ message: "Error fetching hunt admin data", error: err.message });
