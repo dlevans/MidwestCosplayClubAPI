@@ -771,6 +771,7 @@ router.get("/admin/all", requireAdmin, async (req, res) => {
         i.id,
         {
           title: i.title,
+          description: i.description || null,
           points: i.points || 0,
           requiresimage: !!i.requiresimage,
           requirestext: !!i.requirestext,
@@ -794,6 +795,7 @@ router.get("/admin/all", requireAdmin, async (req, res) => {
       usersById.get(row.userid).entries.push({
         itemid: row.itemid,
         title: meta.title || row.itemid,
+        description: meta.description,
         points: meta.points || 0,
         requiresimage: !!meta.requiresimage,
         requirestext: !!meta.requirestext,
